@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GALAXY STRIKER (v25.0 - FINAL BUILD)</title>
+    <title>GALAXY STRIKER (v25.1 - FINAL)</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; background-color: #000; color: #fff; font-family: 'Courier New', Courier, monospace; width: 100%; height: 100%; -webkit-text-size-adjust: 100%; touch-action: none; }
         #game-container { position: relative; width: 100%; height: 100%; box-shadow: 0 0 25px #f0f; border: 2px solid #505; box-sizing: border-box; display: flex; justify-content: center; align-items: center; background: #000; }
@@ -12,16 +12,17 @@
         #ui-layer > div { background-color: rgba(0, 0, 0, 0.8); padding: 3vw; border-radius: 10px; border: 2px solid #0ff; pointer-events: auto; max-width: 90%; }
         h1 { font-size: min(8vw, 3.5em); color: #f0f; text-shadow: 0 0 15px #f0f; line-height: 1.2; }
         .instruction { font-size: min(4vw, 1.2em); }
-        button { font-size: min(5vw, 1.5em); padding: 10px 30px; background-color: #0ff; color: #000; border: none; cursor: pointer; transition: all 0.2s; border-radius: 5px; -webkit-tap-highlight-color: transparent; }
+        button { font-size: min(5vw, 1.5em); padding: 10px 30px; background-color: #0ff; color: #000; border: none; border-radius: 5px; cursor: pointer; transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
         button:active { background-color: #fff; box-shadow: 0 0 15px #fff; }
-        #hud { position: absolute; top: 10px; left: 10px; width: calc(100% - 20px); font-size: min(4vw, 1.8em); display: none; justify-content: space-between; pointer-events: none; text-shadow: 2px 2px 3px #000; z-index: 5; }
-        #hud span { padding: 5px 10px; }
-        #boss-hp-container { position: absolute; top: 15px; left: 15%; width: 70%; height: 25px; background-color: #555; border: 2px solid #fff; display: none; z-index: 5;}
-        #boss-hp-bar { width: 100%; height: 100%; background: linear-gradient(to left, #f00, #f80); transition: width 0.2s linear; }
+        #hud { position: absolute; top: 10px; left: 10px; width: calc(100% - 20px); display: none; justify-content: space-between; font-size: min(6vw, 2.6em); text-shadow: 2px 2px 3px #000; pointer-events: none; z-index: 5; }
+        #hud span { padding: 8px 14px; }
+        #boss-hp-container { position: absolute; top: 15px; left: 15%; width: 70%; height: 32px; background: #555; border: 2px solid #fff; display: none; z-index: 5; }
+        #boss-hp-bar { width: 100%; height: 100%; background: linear-gradient(to left,#f00,#f80); transition: width .2s linear; }
         #touch-controls { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 20; }
-        #joystick-area, #shoot-area, #sub-weapon-button { pointer-events: auto; }
+        #joystick-area, #shoot-area { pointer-events: auto; }
         #joystick-area { position: absolute; left: 0; top: 0; width: 50%; height: 100%; }
         #shoot-area { position: absolute; right: 0; top: 0; width: 50%; height: 100%; }
+        #joystick-knob { position: absolute; pointer-events: none; width: 15vw; height: 15vw; max-width: 100px; max-height: 100px; background-color: rgba(0, 255, 255, 0.3); border: 2px solid #0ff; border-radius: 50%; display: none; transform: translate(-50%, -50%); }
         .keyboard-instruction, .touch-device #start-button { display: none; }
         .non-touch-device .touch-instruction { display: none; }
         #touch-to-start { position: absolute; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 30; display: none; justify-content: center; align-items: center; animation: fadeIn 1s ease; pointer-events: auto; }
@@ -43,18 +44,22 @@
         </div>
         <div id="ui-layer">
             <div id="title-screen">
-                <h1>GALAXY STRIKER<br><span style="font-size:0.5em;">- FINAL BUILD (v25.0) -</span></h1>
+                <h1>GALAXY STRIKER<br><span style="font-size:.5em;">- FINAL BUILD (v25.1) -</span></h1>
                 <p class="instruction keyboard-instruction">移動: マウスカーソル</p>
                 <p class="instruction touch-instruction">画面をタップしてスタート</p>
                 <p class="instruction">武器は最大50段階まで強化可能！</p>
                 <button id="start-button">ゲームスタート</button>
             </div>
-            <div id="loading-screen" style="display: none; flex-direction: column;"><h2>NOW LOADING...</h2></div>
-            <div id="game-over-screen" style="display: none; flex-direction: column;"><h2>GAME OVER</h2><p>最終スコア: <span id="final-score">0</span></p><br><button id="retry-button">もう一度プレイ</button></div>
+            <div id="loading-screen" style="display:none;flex-direction:column"><h2>NOW LOADING...</h2></div>
+            <div id="game-over-screen" style="display:none;flex-direction:column">
+                <h2>GAME OVER</h2><p>最終スコア: <span id="final-score">0</span></p><br>
+                <button id="retry-button">もう一度プレイ</button>
+            </div>
         </div>
         <div id="touch-controls">
             <div id="joystick-area"></div>
             <div id="shoot-area"></div>
+            <div id="joystick-knob"></div>
         </div>
         <div id="touch-to-start">
             <h2 style="text-shadow: 0 0 10px #0ff;">画面をタップして開始</h2>
@@ -68,10 +73,13 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     'use strict';
     
     let score, player, keys = {}, bullets, enemies, particles, stars = [], powerUps, boss, enemySpawnTimer, gameState, animationFrameId;
-    let nextBossScore; // ★★★ 修正: ボス出現管理用の変数 ★★★
     const touchState = { joy: { active: false, id: null, x: 0, y: 0, dx: 0, dy: 0 }, shoot: { active: false, id: null } };
     let elements = {};
     let ctx;
+    
+    let bossCount = 0;
+    const firstBossScore = 10000;
+    const bossInterval = 30000;
     
     const images = { player: null, enemy1: null, enemy2: null, enemy3: null, boss: null };
     const imageSources = { player: './player.png', enemy1: './enemy1.png', enemy2: './enemy2.png', enemy3: './enemy3.png', boss: './boss.png' };
@@ -91,7 +99,7 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             }
             offscreenCtx.putImageData(imageData, 0, 0);
             return offscreenCanvas;
-        } catch (e) { console.error("画像処理に失敗 (CORSエラーの可能性): ", e); return img; }
+        } catch (e) { return img; }
     }
 
     function loadImages() {
@@ -99,12 +107,8 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => { 
-                    // ★★★ 修正: enemy2とenemy3のみ白抜き処理 ★★★
-                    if (['enemy2','enemy3'].includes(key)) {
-                        images[key] = removeWhite(img);
-                    } else {
-                        images[key] = img;
-                    }
+                    if (['enemy2','enemy3'].includes(key)) { images[key] = removeWhite(img); } 
+                    else { images[key] = img; }
                     resolve();
                 };
                 img.onerror = () => { console.error(`画像の読み込みに失敗: ${imageSources[key]}`); resolve(); };
@@ -116,7 +120,16 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     
     const AudioEngine = { 
         isUnlocked: false,
-        unlock() { if (this.isUnlocked) return; this.isUnlocked = true; elements.mainBgm.play().catch(()=>{}); elements.mainBgm.pause(); elements.bossBgm.play().catch(()=>{}); elements.bossBgm.pause(); },
+        unlock() {
+            if (this.isUnlocked) return;
+            this.isUnlocked = true;
+            const ctx = this._getAudioContext();
+            if (ctx && ctx.state === 'suspended') {
+                ctx.resume();
+            }
+            elements.mainBgm.play().catch(()=>{}); elements.mainBgm.pause();
+            elements.bossBgm.play().catch(()=>{}); elements.bossBgm.pause();
+        },
         playBGM(type = 'main') {
             if (!this.isUnlocked) return;
             this.stopBGM();
@@ -138,18 +151,10 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     };
 
     class Player {
-        constructor() { this.x = elements.canvas.width / 2; this.y = elements.canvas.height - 100; this.width = 48; this.height = 48; this.speed = 7; this.hp = 3; this.maxHp = 3; this.mainShootCooldown = 0; this.subShootCooldown = 0; this.weaponLevel = 1; }
+        constructor() { this.x = elements.canvas.width / 2; this.y = elements.canvas.height - 100; this.width = 48; this.height = 48; this.hp = 3; this.maxHp = 3; this.mainShootCooldown = 0; this.subShootCooldown = 0; this.weaponLevel = 1; }
         update() {
-            // ★★★ 修正: キーボード操作を削除（マウス操作はイベントリスナーで直接更新） ★★★
-            
-            // ★★★ 修正: 常時オートショット化 ★★★
             if (this.mainShootCooldown <= 0) this.shootMain();
-            
-            if (this.subShootCooldown <= 0) { // サブウェポンも自動化
-                this.shootSub();
-                this.subShootCooldown = 15; // ★★★ 修正: 連射間隔を短縮 ★★★
-            }
-
+            if (this.subShootCooldown <= 0) { this.shootSub(); this.subShootCooldown = 15; }
             if (this.mainShootCooldown > 0) this.mainShootCooldown--;
             if (this.subShootCooldown > 0) this.subShootCooldown--;
         }
@@ -163,32 +168,34 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     class Bullet { constructor(x, y, options={}) { this.x = x; this.y = y; this.vx = options.vx ?? 0; this.vy = options.vy ?? -15; this.color = options.color ?? '#0f0'; this.damage = options.damage ?? 1; this.type = options.type ?? 'player'; this.shape = options.shape ?? 'rect'; this.target = options.target ?? null; this.turnSpeed = 0.05; switch(this.shape) { case 'beam': this.width = options.width ?? 4; this.height = options.height ?? 50; this.vy=options.vy??-35; break; case 'ball': this.radius = 8 + this.damage / 2; this.width=this.radius*2; this.height=this.radius*2; this.vy=options.vy??-8; break; case 'missile': this.width = 8; this.height = 16; this.vy=options.vy??-6; this.vx=options.vx??(Math.random()-0.5)*2; this.life=150; break; default: this.width = 3; this.height = 15; } } update() { if (this.shape === 'missile' && this.life > 0) { this.life--; if (!this.target || this.target.hp <= 0) this.target = findClosestEnemy(this.x, this.y); if (this.target) { const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x); this.vx += Math.cos(angle) * 0.5; this.vy += Math.sin(angle) * 0.5; } const speed = Math.hypot(this.vx, this.vy); if (speed > 10) { const ratio = 10 / speed; this.vx *= ratio; this.vy *= ratio; } } this.x += this.vx; this.y += this.vy; } draw() { const { ctx } = elements; ctx.save(); ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 15; if (this.shape === 'ball') { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); } else { ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } ctx.restore(); } }
     class Boss { constructor() { this.maxHp = 600; this.hp = this.maxHp; this.x = elements.canvas.width / 2; this.y = -100; this.width = 96; this.height = 96; this.score = 10000; this.targetY = 120; this.state = 'enter'; this.patternTimer = 0; this.currentPattern = 0; } update() { if (this.state === 'enter') { this.y += 2; if (this.y >= this.targetY) { this.y = this.targetY; this.state = 'fight'; } return; } this.patternTimer--; if (this.patternTimer <= 0) { this.currentPattern = (this.currentPattern + 1) % 3; switch (this.currentPattern) { case 0: this.patternTimer = 60; for (let i = 0; i < 11; i++) bullets.push(new Bullet(this.x, this.y + this.height/2, {vy:7, vx:(i-5), color:'#f57c00', type:'enemy'})); break; case 1: this.patternTimer = 80; for(let i=0; i<4; i++) setTimeout(()=> {if(this.hp>0 && gameState === 'playing') bullets.push(new Bullet(this.x, this.y + this.height/2, {vy:14, color:'#f57c00', type:'enemy', damage: 2}))}, i*100); break; case 2: this.patternTimer = 100; bullets.push(new Bullet(this.x - 40, this.y + this.height/2, {shape:'missile', type:'enemy', color:'#c2185b', target:player})); bullets.push(new Bullet(this.x + 40, this.y + this.height/2, {shape:'missile', type:'enemy', color:'#c2185b', target:player})); break; } } } draw() { if (images.boss) { ctx.drawImage(images.boss, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#7B1FA2'; ctx.strokeStyle = '#9C27B0'; ctx.lineWidth = 4; ctx.fillRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height); ctx.strokeRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height); ctx.restore(); } } }
     class Enemy { constructor() { this.x = Math.random() * (elements.canvas.width - 40) + 20; this.y = -40; this.width = 48; this.height = 48; this.speed = 3; this.hp = 3; this.score = 100; } update() { this.y += this.speed; } draw() { if (images.enemy1) { ctx.drawImage(images.enemy1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#C0C'; ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.width / 2, this.y - this.height); ctx.lineTo(this.x - this.width / 2, this.y - this.height); ctx.closePath(); ctx.fill(); ctx.restore(); } } }
-    class ShooterEnemy extends Enemy { constructor() { super(); this.speed = 2.5; this.hp = 4; this.score = 150; this.shootCooldown = Math.random() * 50 + 50; } update() { super.update(); this.shootCooldown--; if (this.shootCooldown <= 0 && this.y > 0 && this.y < elements.canvas.height) { bullets.push(new Bullet(this.x, this.y + this.height/2, {vy:8, color:'#f00', type:'enemy'})); this.shootCooldown = 100; } } draw() { if (images.enemy2) { ctx.drawImage(images.enemy2, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#D32F2F'; ctx.beginPath(); ctx.moveTo(this.x + this.width/2, this.y); ctx.lineTo(this.x, this.y-this.height); ctx.lineTo(this.x-this.width/2, this.y); ctx.closePath(); ctx.fill(); ctx.restore(); } } }
-    class ChaserEnemy extends Enemy { constructor() { super(); this.speed = 2; this.hp = 2; this.score = 200; this.chaseSpeed = 1.5; } update() { this.y += this.speed; if(player) this.x += Math.sign(player.x - this.x) * this.chaseSpeed; } draw() { if (images.enemy3) { ctx.drawImage(images.enemy3, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#FFC107'; ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.width/4, this.y - this.height); ctx.lineTo(this.x - this.width/4, this.y - this.height); ctx.closePath(); ctx.fill(); ctx.restore(); } } }
+    class ShooterEnemy extends Enemy { constructor() { super(); this.speed = 2.5; this.hp = 4; this.score = 150; this.shootCooldown = Math.random() * 50 + 50; } update() { super.update(); this.shootCooldown--; if (this.shootCooldown <= 0 && this.y > 0 && this.y < elements.canvas.height) { [-6,0,6].forEach(dx=> bullets.push(new Bullet(this.x,this.y,{vx:dx,vy:8,color:'#ff5722',type:'enemy'})) ); this.shootCooldown = 90; } } draw() { if (images.enemy2) { ctx.drawImage(images.enemy2, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#D32F2F'; ctx.beginPath(); ctx.moveTo(this.x + this.width/2, this.y); ctx.lineTo(this.x, this.y-this.height); ctx.lineTo(this.x-this.width/2, this.y); ctx.closePath(); ctx.fill(); ctx.restore(); } } }
+    class ChaserEnemy extends Enemy { constructor() { super(); this.speed = 2; this.hp = 2; this.score = 200; this.chaseSpeed = 1.5; this.dashed = false; } update() { this.y += this.speed; if(player) this.x += Math.sign(player.x - this.x) * this.chaseSpeed; if (this.y > 80 && !this.dashed) { for(let i=0;i<5;i++) bullets.push(new Bullet(this.x,this.y,{vx:(Math.random()-0.5)*6,vy:8,color:'#e91e63',type:'enemy'})); this.speed=12; this.dashed=true; } } draw() { if (images.enemy3) { ctx.drawImage(images.enemy3, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#FFC107'; ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.width/4, this.y - this.height); ctx.lineTo(this.x - this.width/4, this.y - this.height); ctx.closePath(); ctx.fill(); ctx.restore(); } } }
+    class ZigZagEnemy extends Enemy { constructor(){ super(); this.angle=Math.random()*Math.PI*2; } update(){ this.angle+=0.1; this.x+=Math.sin(this.angle)*5; this.y+=this.speed; } }
     class PowerUp { constructor(x, y) { this.x = x; this.y = y; this.width = 24; this.height = 24; this.speed = 2; this.angle = 0; this.type = 'powerup';} update() { this.y += this.speed; this.angle += 0.1; } draw() { const { ctx } = elements; ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); ctx.fillStyle = '#FFF'; ctx.strokeStyle = '#F0F'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, this.width/2-2, 0, Math.PI * 2); ctx.stroke(); ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('P', 0, 1); ctx.restore(); } }
     class HeartItem { constructor(x, y) { this.x = x; this.y = y; this.width = 24; this.height = 24; this.speed = 2; this.angle = 0; this.type = 'heart';} update() { this.y += this.speed; this.angle += 0.05; } draw() { const { ctx } = elements; ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); ctx.fillStyle = '#F48FB1'; ctx.shadowColor = '#F48FB1'; ctx.shadowBlur = 15; ctx.font = '24px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('♥', 0, 1); ctx.restore(); } }
     class Star { constructor() { this.x = Math.random() * elements.canvas.width; this.y = Math.random() * elements.canvas.height; this.speed = Math.random() * 0.8 + 0.2; this.size = Math.random() * 2.5; } update() { this.y += this.speed; if (this.y > elements.canvas.height) { this.y = 0; this.x = Math.random() * elements.canvas.width; } } draw() { const { ctx } = elements; ctx.fillStyle = `rgba(255, 255, 255, ${this.size / 2})`; ctx.fillRect(this.x, this.y, this.size, this.size); } }
     class Particle { constructor(x, y, color, size, speed) { this.x = x; this.y = y; this.color = color; this.size = size; this.speed = speed; this.life = 40; this.vx = (Math.random() - 0.5) * this.speed; this.vy = (Math.random() - 0.5) * this.speed; } update() { this.x += this.vx; this.y += this.vy; this.life--; } draw() { const { ctx } = elements; ctx.fillStyle = this.color; ctx.globalAlpha = this.life / 40; ctx.fillRect(this.x, this.y, this.size, this.size); ctx.globalAlpha = 1.0; } }
     
-    function resetGameState() { score = 0; keys = {}; bullets = []; enemies = []; particles = []; powerUps = []; boss = null; nextBossScore = 10000; enemySpawnTimer = 0; player = new Player(); gameState = 'playing'; if (stars.length === 0) for (let i = 0; i < 200; i++) stars.push(new Star()); }
+    function resetGameState() { score = 0; keys = {}; bullets = []; enemies = []; particles = []; powerUps = []; boss = null; bossCount = 0; enemySpawnTimer = 0; player = new Player(); gameState = 'playing'; if (stars.length === 0) for (let i = 0; i < 200; i++) stars.push(new Star()); }
     function findClosestEnemy(x, y) { if (!enemies && !boss) return null; let closest = null; let minDistance = Infinity; const targets = boss ? [boss, ...enemies] : enemies; for (const e of targets) { if (!e || e.y > y) continue; const dist = Math.hypot(e.x - x, e.y - y); if (dist < minDistance) { minDistance = dist; closest = e; } } return closest; }
     function init() { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } resetGameState(); elements.titleScreen.style.display = 'none'; elements.gameOverScreen.style.display = 'none'; elements.hud.style.display = 'flex'; if (isTouchDevice()) { elements.touchControls.style.display = 'block'; } else { elements.canvas.addEventListener('mousemove', e => { if(player) { const rect = elements.canvas.getBoundingClientRect(); const scaleX = elements.canvas.width / rect.width; const scaleY = elements.canvas.height / rect.height; player.x = (e.clientX - rect.left) * scaleX; player.y = (e.clientY - rect.top) * scaleY; } }); } gameLoop(); }
-    function update() { if (gameState !== 'playing') return; if (isTouchDevice()) updateTouchControls(); stars.forEach(s => s.update()); if(player) player.update(); if (boss) { boss.update(); } else { enemySpawnTimer--; if (enemySpawnTimer <= 0) { const r = Math.random(); if (r < 0.2) enemies.push(new ChaserEnemy()); else if (r < 0.5) enemies.push(new ShooterEnemy()); else enemies.push(new Enemy()); enemySpawnTimer = Math.max(15, 70 - score / 300); } } if (!boss && score >= nextBossScore) { spawnBoss(); nextBossScore += 12000; } [bullets, enemies, particles, powerUps].forEach(arr => arr.forEach(item => item.update())); checkCollisions(); bullets = bullets.filter(b => b.y < elements.canvas.height + 100 && b.y > -100 && b.x > -100 && b.x < elements.canvas.width+100 && (!b.life || b.life > 0)); enemies = enemies.filter(e => e.y < elements.canvas.height + e.height && e.hp > 0); particles = particles.filter(p => p.life > 0); powerUps = powerUps.filter(p => p.y < elements.canvas.height + p.height); }
+    function shouldSpawnBoss() { if (boss) return false; const next = firstBossScore + bossCount * bossInterval; return score >= next; }
+    function update() { if (gameState !== 'playing') return; if (isTouchDevice()) updateTouchControls(); stars.forEach(s => s.update()); if(player) player.update(); if (boss) { boss.update(); } else { enemySpawnTimer--; if (enemySpawnTimer <= 0) { const r = Math.random(); if (r < 0.2) enemies.push(new ChaserEnemy()); else if (r < 0.4) enemies.push(new ShooterEnemy()); else if (r < 0.6) enemies.push(new ZigZagEnemy()); else enemies.push(new Enemy()); enemySpawnTimer = Math.max(15, 70 - score / 300); } } if (shouldSpawnBoss()) { spawnBoss(); } [bullets, enemies, particles, powerUps].forEach(arr => arr.forEach(item => item.update())); checkCollisions(); bullets = bullets.filter(b => b.y < elements.canvas.height + 100 && b.y > -100 && b.x > -100 && b.x < elements.canvas.width+100 && (!b.life || b.life > 0)); enemies = enemies.filter(e => e.y < elements.canvas.height + e.height && e.hp > 0); particles = particles.filter(p => p.life > 0); powerUps = powerUps.filter(p => p.y < elements.canvas.height + p.height); }
     function draw() { const { ctx, scoreDisplay, weaponLevelDisplay, healthDisplay, bossHpBar, bossHpContainer, canvas } = elements; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height); stars.forEach(s => s.draw()); if (gameState !== 'playing' || !player) return; player.draw(); if (boss) boss.draw(); [bullets, enemies, particles, powerUps].forEach(arr => arr.forEach(item => item.draw())); if(scoreDisplay) scoreDisplay.textContent = `SCORE: ${score}`; if(weaponLevelDisplay) weaponLevelDisplay.textContent = player.weaponLevel >= 50 ? 'LV.MAX!!' : `LV.${player.weaponLevel}`; if(healthDisplay) healthDisplay.textContent = `HP: ${'❤️'.repeat(Math.max(0,player.hp))}`; if (boss && boss.hp > 0) { if(bossHpContainer) bossHpContainer.style.display = 'block'; if(bossHpBar) bossHpBar.style.width = `${Math.max(0, boss.hp / boss.maxHp * 100)}%`; } else if (bossHpContainer && bossHpContainer.style.display !== 'none') { bossHpContainer.style.display = 'none'; } }
     function checkCollisions() { if(!player) return; bullets.forEach(b => { if (b.type === 'player') { const targets = boss ? [boss, ...enemies] : enemies; for(const e of targets) { if (e && e.hp > 0 && Math.hypot(b.x - e.x, b.y - e.y) < e.width/2 + b.width/2) { e.hp -= b.damage; b.y = -1000; if(e.hp <= 0) onEnemyDestroy(e); }}; } else { if (Math.hypot(b.x-player.x, b.y-player.y) < player.width/2) { player.takeDamage(); b.y = 1000; } } }); enemies.forEach(e => { if (e.hp > 0 && Math.hypot(player.x - e.x, player.y - e.y) < (player.width/2 + e.width/2) * 0.8 ) { player.takeDamage(); e.hp = 0; onEnemyDestroy(e); }}); 
         const collectedPowerUps = []; powerUps.forEach(p => { if (Math.hypot(player.x - p.x, player.y - p.y) < 40) {
             if (p.type === 'heart') { player.heal(); } 
             else if (p.type === 'powerup') { player.powerUp(); }
             collectedPowerUps.push(p); } }); if(collectedPowerUps.length > 0) powerUps = powerUps.filter(p => !collectedPowerUps.includes(p)); }
-    function onEnemyDestroy(e) { AudioEngine.playExplosion(); if (e.score) score += e.score; createExplosion(e.x, e.y, ['#fff', '#f0f', '#ff0'], 40); if(e instanceof Boss) { boss = null; AudioEngine.playBGM('main'); } else { const r = Math.random(); if (r < 0.05) { powerUps.push(new HeartItem(e.x, e.y)); } else if (r < 0.25) { powerUps.push(new PowerUp(e.x, e.y)); } } }
+    function onEnemyDestroy(e) { AudioEngine.playExplosion(); if (e.score) score += e.score; createExplosion(e.x, e.y, ['#fff', '#f0f', '#ff0'], 40); if(e instanceof Boss) { boss = null; bossCount++; AudioEngine.playBGM('main'); } else { const r = Math.random(); if (r < 0.05) { powerUps.push(new HeartItem(e.x, e.y)); } else if (r < 0.25) { powerUps.push(new PowerUp(e.x, e.y)); } } }
     function spawnBoss() { enemies = []; boss = new Boss(); AudioEngine.playBGM('boss'); }
     function createExplosion(x, y, colors, count = 20) { for (let i = 0; i < count; i++) { const color = colors[Math.floor(Math.random() * colors.length)]; particles.push(new Particle(x, y, color, Math.random() * 3 + 1, Math.random() * 8 + 2)); } }
     function gameLoop() { animationFrameId = requestAnimationFrame(gameLoop); try { if (gameState === 'playing') { update(); draw(); } if (gameState === 'gameOver') { showGameOver(); } } catch(e) { cancelAnimationFrame(animationFrameId); window.onerror(e.message, 'gameLoop', 0, 0, e); } }
     function showGameOver() { if(gameState === 'gameOver') { gameState = 'ended'; if(animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; AudioEngine.stopBGM(); const { touchControls, finalScoreDisplay, gameOverScreen, hud, bossHpContainer, canvas } = elements; if (isTouchDevice() && touchControls) touchControls.style.display = 'none'; const playerX = player ? player.x : canvas.width/2; const playerY = player ? player.y : canvas.height/2; createExplosion(playerX, playerY, ['#fff', '#0ff', '#f0f'], 100); player = null; if(finalScoreDisplay) finalScoreDisplay.textContent = score; if(gameOverScreen) gameOverScreen.style.display = 'flex'; if(hud) hud.style.display = 'none'; if(bossHpContainer) bossHpContainer.style.display = 'none'; } }
     function isTouchDevice() { return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0); }
-    function handleTouchStart(e) { e.preventDefault(); const touches = e.changedTouches; for (let i = 0; i < touches.length; i++) { const touch = touches[i]; const target = touch.target; if (target.id === 'joystick-area' && !touchState.joy.active) { touchState.joy.active = true; touchState.joy.id = touch.identifier; touchState.joy.x = touch.clientX; touchState.joy.y = touch.clientY; elements.joystickKnob.style.left = `${touch.clientX}px`; elements.joystickKnob.style.top = `${touch.clientY}px`; elements.joystickKnob.style.display = 'block'; } else if (target.id === 'shoot-area' && !touchState.shoot.active) { touchState.shoot.active = true; touchState.shoot.id = touch.identifier; } } }
-    function handleTouchMove(e) { e.preventDefault(); const touches = e.changedTouches; for (let i = 0; i < touches.length; i++) { const touch = touches[i]; if (touchState.joy.active && touch.identifier === touchState.joy.id) { touchState.joy.dx = touch.clientX - touchState.joy.x; touchState.joy.dy = touch.clientY - touchState.joy.y; elements.joystickKnob.style.left = `${touch.clientX}px`; elements.joystickKnob.style.top = `${touch.clientY}px`; if(player){ player.x += touchState.joy.dx * 0.1; player.y += touchState.joy.dy * 0.1; } } } } // A simple joystick logic
-    function handleTouchEnd(e) { e.preventDefault(); const touches = e.changedTouches; for (let i = 0; i < touches.length; i++) { const touch = touches[i]; if (touchState.joy.active && touch.identifier === touchState.joy.id) { touchState.joy.active = false; touchState.joy.id = null; touchState.joy.dx = 0; touchState.joy.dy = 0; elements.joystickKnob.style.display = 'none'; } else if (touchState.shoot.active && touch.identifier === touchState.shoot.id) { touchState.shoot.active = false; touchState.shoot.id = null; } } }
+    function handleTouchStart(e) { e.preventDefault(); const touches = e.changedTouches; for (let i = 0; i < touches.length; i++) { const touch = touches[i]; const target = touch.target; if (target.id === 'joystick-area' && !touchState.joy.active) { touchState.joy.active = true; touchState.joy.id = touch.identifier; touchState.joy.x = touch.clientX; touchState.joy.y = touch.clientY; } } }
+    function handleTouchMove(e) { e.preventDefault(); const touches = e.changedTouches; for (let i = 0; i < touches.length; i++) { const touch = touches[i]; if (touchState.joy.active && touch.identifier === touchState.joy.id) { if(player) { const rect = elements.canvas.getBoundingClientRect(); const scaleX = elements.canvas.width / rect.width; const scaleY = elements.canvas.height / rect.height; player.x = (touch.clientX - rect.left) * scaleX; player.y = (touch.clientY - rect.top) * scaleY; } } } }
+    function handleTouchEnd(e) { e.preventDefault(); const touches = e.changedTouches; for (let i = 0; i < touches.length; i++) { const touch = touches[i]; if (touchState.joy.active && touch.identifier === touchState.joy.id) { touchState.joy.active = false; touchState.joy.id = null; } } }
     
     document.addEventListener('DOMContentLoaded', () => {
         elements = { canvas: document.getElementById('game-canvas'), titleScreen: document.getElementById('title-screen'), loadingScreen: document.getElementById('loading-screen'), gameOverScreen: document.getElementById('game-over-screen'), hud: document.getElementById('hud'), touchControls: document.getElementById('touch-controls'), bossHpContainer: document.getElementById('boss-hp-container'), bossHpBar: document.getElementById('boss-hp-bar'), joystickKnob: document.getElementById('joystick-knob'), touchToStart: document.getElementById('touch-to-start'), startButton: document.getElementById('start-button'), retryButton: document.getElementById('retry-button'), finalScoreDisplay: document.getElementById('final-score'), scoreDisplay: document.getElementById('score-display'), weaponLevelDisplay: document.getElementById('weapon-level-display'), healthDisplay: document.getElementById('health-display'), mainBgm: document.getElementById('bgm-main'), bossBgm: document.getElementById('bgm-boss'), };
