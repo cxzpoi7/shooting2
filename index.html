@@ -15,7 +15,6 @@
         button { font-size: min(5vw, 1.5em); padding: 10px 30px; background-color: #0ff; color: #000; border: none; border-radius: 5px; cursor: pointer; transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
         button:active { background-color: #fff; box-shadow: 0 0 15px #fff; }
         #hud { position: absolute; top: 10px; left: 10px; width: calc(100% - 20px); display: none; justify-content: space-between; align-items: center; pointer-events: none; z-index: 5; }
-        /* ★修正: HP表示のサイズ調整 */
         #hud span { padding: 6px 10px; font-size: min(5vw, 2.2em); text-shadow: 2px 2px 3px #000; }
         #boss-hp-container { position: absolute; top: 15px; left: 15%; width: 70%; height: 32px; background: #555; border: 2px solid #fff; display: none; z-index: 5; }
         #boss-hp-bar { width: 100%; height: 100%; background: linear-gradient(to left,#f00,#f80); transition: width .2s linear; }
@@ -25,8 +24,8 @@
         #touch-to-start { position: absolute; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 30; display: none; justify-content: center; align-items: center; animation: fadeIn 1s ease; pointer-events: auto; }
         #loading-screen { flex-direction: column; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        /* ★追加: ミュートボタンのスタイル */
-        #mute-button { position: absolute; top: 10px; right: 10px; z-index: 25; font-size: min(8vw, 2.5em); cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent; text-shadow: 2px 2px 3px #000; }
+        /* ★修正: ミュートボタンを左下に配置 */
+        #mute-button { position: absolute; bottom: 10px; left: 10px; z-index: 25; font-size: min(8vw, 2.5em); cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent; text-shadow: 2px 2px 3px #000; }
     </style>
 </head>
 <body>
@@ -41,7 +40,6 @@
             <span id="weapon-level-display"></span>
             <span id="health-display"></span>
         </div>
-        <!-- ★追加: ミュートボタン -->
         <div id="mute-button">🔊</div>
         <div id="ui-layer">
             <div id="title-screen">
@@ -73,7 +71,6 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     let elements = {};
     let ctx;
     let logicalWidth, logicalHeight;
-    // ★追加: ミュート状態管理フラグ
     let isMuted = false;
 
     let bossCount = 0;
@@ -130,7 +127,7 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             elements.bossBgm.play().catch(()=>{}); elements.bossBgm.pause();
         },
         playBGM(type = 'main') {
-            if (!this.isUnlocked || isMuted) return; // ミュートチェック
+            if (!this.isUnlocked || isMuted) return;
             this.stopBGM();
             const targetBgm = type === 'boss' ? elements.bossBgm : elements.mainBgm;
             targetBgm.currentTime = 0;
@@ -150,7 +147,7 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
         },
         ctx: null,
         _getAudioContext() { if (!this.ctx && this.isUnlocked) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ console.error(e); } } return this.ctx; },
-        playSound(generator) { if (isMuted) return; const ctx = this._getAudioContext(); if (!ctx) return; generator(ctx); }, // ミュートチェック
+        playSound(generator) { if (isMuted) return; const ctx = this._getAudioContext(); if (!ctx) return; generator(ctx); },
         playShot() { this.playSound(ctx => { const t = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.type = 'triangle'; o.frequency.setValueAtTime(880, t); g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1); o.start(t); o.stop(t + 0.1); }); },
         playExplosion() { this.playSound(ctx => { const t = ctx.currentTime; const bS = ctx.sampleRate * 0.5; const b = ctx.createBuffer(1, bS, ctx.sampleRate); const o = b.getChannelData(0); for (let i = 0; i < bS; i++) { o[i] = Math.random() * 2 - 1; } const n = ctx.createBufferSource(); n.buffer = b; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(2000, t); f.frequency.exponentialRampToValueAtTime(100, t + 0.3); const g = ctx.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4); n.connect(f); f.connect(g); g.connect(ctx.destination); n.start(t); n.stop(t + 0.5); }); },
         playPowerUp() { this.playSound(ctx => { const t = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.type = 'sine'; o.frequency.setValueAtTime(523, t); o.frequency.exponentialRampToValueAtTime(1046, t + 0.2); g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2); o.start(t); o.stop(t + 0.2); }); },
@@ -182,38 +179,24 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             }
             if (images.player) { ctx.drawImage(images.player, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#0CF'; ctx.beginPath(); ctx.moveTo(this.x, this.y - this.height / 2); ctx.lineTo(this.x + this.width / 2, this.y + this.height / 2); ctx.lineTo(this.x - this.width / 2, this.y + this.height / 2); ctx.closePath(); ctx.fill(); ctx.restore(); }
         }
-        // ★修正: 武器システムを10段階に刷新
         shootMain() {
             AudioEngine.playShot();
             const lv = this.weaponLevel;
             this.mainShootCooldown = Math.max(2, 10 - lv);
             const baseDamage = 1 + Math.floor(lv / 2);
             const shootY = this.y - this.height / 2;
-
-            // Lv1: 単発ショット
-            bullets.push(new Bullet(this.x, shootY, { vy: -15, damage: baseDamage }));
-            // Lv2: 2連ショット
+            if (lv >= 1) { bullets.push(new Bullet(this.x, shootY, { vy: -15, damage: baseDamage })); }
             if (lv >= 2) { bullets.push(new Bullet(this.x - 8, shootY, { vy: -15, damage: baseDamage })); bullets.push(new Bullet(this.x + 8, shootY, { vy: -15, damage: baseDamage })); }
-            // Lv3: 3-Wayショット
             if (lv >= 3) { bullets.push(new Bullet(this.x, shootY, { vy: -14, vx: -2, color: '#afa', damage: baseDamage })); bullets.push(new Bullet(this.x, shootY, { vy: -14, vx: 2, color: '#afa', damage: baseDamage })); }
-            // Lv4: 射撃レートUP (mainShootCooldownで対応済み) & 弾速UP
             if (lv >= 4) { bullets.forEach(b => { if(b.y === shootY) b.vy = -18; }); }
-            // Lv5: 5-Wayショット
             if (lv >= 5) { bullets.push(new Bullet(this.x, shootY, { vy: -12, vx: -4, color: '#afa', damage: baseDamage })); bullets.push(new Bullet(this.x, shootY, { vy: -12, vx: 4, color: '#afa', damage: baseDamage })); }
-            // Lv6: 誘導ミサイル
             if (lv >= 6 && this.mainShootCooldown % 10 === 0) { bullets.push(new Bullet(this.x - 20, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: 5 + lv })); bullets.push(new Bullet(this.x + 20, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: 5 + lv, color: '#f0f' })); }
-            // Lv7: 左右にサイドレーザー
             if (lv >= 7 && this.mainShootCooldown % 4 === 0) { bullets.push(new Bullet(this.x - 30, shootY, { shape: 'beam', damage: 3 + lv, color: '#ff9800' })); bullets.push(new Bullet(this.x + 30, shootY, { shape: 'beam', damage: 3 + lv, color: '#ff9800' })); }
-            // Lv8: ミサイル強化
             if (lv >= 8 && this.mainShootCooldown % 10 === 0) { bullets.push(new Bullet(this.x, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: 5 + lv, color: '#fff' })); }
-            // Lv9: 中央に強力なレーザー
             if (lv >= 9 && this.mainShootCooldown % 5 === 0) { bullets.push(new Bullet(this.x, shootY, { shape: 'beam', vy: -40, color: '#fff', damage: 10 + lv, width: 8 })); }
-            // Lv10 (MAX): 回転ビットと極太レーザー
             if (lv >= 10) {
-                this.mainShootCooldown = 2; // 最高レート
-                // 極太レーザー
+                this.mainShootCooldown = 2;
                 if (this.mainShootCooldown % 4 === 0) bullets.push(new Bullet(this.x, shootY, { shape: 'beam', vy: -50, color: '#fff', damage: 25, width: 15 }));
-                // 回転ビットからの弾
                 for (let i = 0; i < 2; i++) {
                     const angle = this.bitAngle + i * Math.PI;
                     const bitX = this.x + Math.cos(angle) * 60;
@@ -258,24 +241,20 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             if (p.type === 'heart') { player.heal(); } 
             else if (p.type === 'powerup') { player.powerUp(); }
             collectedPowerUps.push(p); } }); if(collectedPowerUps.length > 0) powerUps = powerUps.filter(p => !collectedPowerUps.includes(p)); }
-    function onEnemyDestroy(e) { AudioEngine.playExplosion(); if (e.score) score += e.score; createExplosion(e.x, e.y, ['#fff', '#f0f', '#ff0'], 40); if(e instanceof Boss) { boss = null; bossCount++; AudioEngine.playBGM('main'); } else { const r = Math.random(); if (r < 0.05) { powerUps.push(new HeartItem(e.x, e.y)); } else if (r < 0.15) { powerUps.push(new PowerUp(e.x, e.y)); } } }
+    function onEnemyDestroy(e) { AudioEngine.playExplosion(); if (e.score) score += e.score; createExplosion(e.x, e.y, ['#fff', '#f0f', '#ff0'], 40); if(e instanceof Boss) { boss = null; bossCount++; AudioEngine.playBGM('main'); } else { const r = Math.random(); /* ★修正: アイテム発生確率を半分に */ if (r < 0.025) { powerUps.push(new HeartItem(e.x, e.y)); } else if (r < 0.075) { powerUps.push(new PowerUp(e.x, e.y)); } } }
     function spawnBoss() { enemies = []; boss = new Boss(); AudioEngine.playBGM('boss'); }
     function createExplosion(x, y, colors, count = 20) { for (let i = 0; i < count; i++) { const color = colors[Math.floor(Math.random() * colors.length)]; particles.push(new Particle(x, y, color, Math.random() * 3 + 1, Math.random() * 8 + 2)); } }
     function gameLoop() { animationFrameId = requestAnimationFrame(gameLoop); try { if (gameState === 'playing') { update(); draw(); } if (gameState === 'gameOver') { showGameOver(); } } catch(e) { cancelAnimationFrame(animationFrameId); window.onerror(e.message, 'gameLoop', 0, 0, e); } }
     function showGameOver() { if(gameState === 'gameOver') { gameState = 'ended'; if(animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; AudioEngine.stopBGM(); if (isTouchDevice()) elements.touchControls.style.display = 'none'; const playerX = player ? player.x : logicalWidth/2; const playerY = player ? player.y : logicalHeight/2; createExplosion(playerX, playerY, ['#fff', '#0ff', '#f0f'], 100); player = null; elements.finalScoreDisplay.textContent = score; elements.gameOverScreen.style.display = 'flex'; elements.hud.style.display = 'none'; elements.bossHpContainer.style.display = 'none'; } }
     function isTouchDevice() { return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0); }
     
-    // ★修正: タッチ操作時に指と自機が重ならないようにオフセットを追加
     function movePlayerToTouch(touch) {
         if (!player) return;
         const rect = elements.canvas.getBoundingClientRect();
         let x = touch.clientX - rect.left;
         let y = touch.clientY - rect.top;
-
-        // Y座標を80px上にずらす
         const offsetY = 80;
         y -= offsetY;
-        
         player.x = Math.max(player.width / 2, Math.min(logicalWidth - player.width / 2, x));
         player.y = Math.max(player.height / 2, Math.min(logicalHeight - player.height / 2, y));
     }
@@ -334,7 +313,6 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             runGame();
         };
 
-        // ミュートボタンの処理
         elements.muteButton.addEventListener('click', () => {
             isMuted = !isMuted;
             elements.muteButton.textContent = isMuted ? '🔇' : '🔊';
