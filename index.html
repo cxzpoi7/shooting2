@@ -57,9 +57,7 @@
             </div>
         </div>
         <div id="touch-controls">
-            <div id="joystick-area"></div>
-            <div id="shoot-area"></div>
-            <div id="joystick-knob"></div>
+            <!-- このエリア全体がタッチ操作の対象になります -->
         </div>
         <div id="touch-to-start">
             <h2 style="text-shadow: 0 0 10px #0ff;">画面をタップして開始</h2>
@@ -73,7 +71,8 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     'use strict';
     
     let score, player, keys = {}, bullets, enemies, particles, stars = [], powerUps, boss, enemySpawnTimer, gameState, animationFrameId;
-    const touchState = { joy: { active: false, id: null, x: 0, y: 0, dx: 0, dy: 0 }, shoot: { active: false, id: null } };
+    // ★修正1: タッチ状態の管理を簡素化
+    const touchState = { active: false, id: null };
     let elements = {};
     let ctx;
     
@@ -178,9 +177,9 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     
     function resetGameState() { score = 0; keys = {}; bullets = []; enemies = []; particles = []; powerUps = []; boss = null; bossCount = 0; enemySpawnTimer = 0; player = new Player(); gameState = 'playing'; if (stars.length === 0) for (let i = 0; i < 200; i++) stars.push(new Star()); }
     function findClosestEnemy(x, y) { if (!enemies && !boss) return null; let closest = null; let minDistance = Infinity; const targets = boss ? [boss, ...enemies] : enemies; for (const e of targets) { if (!e || e.y > y) continue; const dist = Math.hypot(e.x - x, e.y - y); if (dist < minDistance) { minDistance = dist; closest = e; } } return closest; }
-    function init() { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } resetGameState(); elements.titleScreen.style.display = 'none'; elements.gameOverScreen.style.display = 'none'; elements.hud.style.display = 'flex'; if (isTouchDevice()) { elements.touchControls.style.display = 'block'; } else { elements.canvas.addEventListener('mousemove', e => { if(player) { const rect = elements.canvas.getBoundingClientRect(); const scaleX = elements.canvas.width / rect.width; const scaleY = elements.canvas.height / rect.height; player.x = (e.clientX - rect.left) * scaleX; player.y = (e.clientY - rect.top) * scaleY; } }); } gameLoop(); }
+    function init() { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } resetGameState(); elements.titleScreen.style.display = 'none'; elements.gameOverScreen.style.display = 'none'; elements.hud.style.display = 'flex'; if (isTouchDevice()) { elements.touchControls.style.display = 'block'; } else { elements.canvas.addEventListener('mousemove', e => { if(player) { const rect = elements.canvas.getBoundingClientRect(); const scaleX = elements.canvas.width / rect.width; const scaleY = elements.canvas.height / rect.height; const x = (e.clientX - rect.left) * scaleX; const y = (e.clientY - rect.top) * scaleY; player.x = Math.max(player.width / 2, Math.min(elements.canvas.width - player.width / 2, x)); player.y = Math.max(player.height / 2, Math.min(elements.canvas.height - player.height / 2, y)); } }); } gameLoop(); }
     function shouldSpawnBoss() { if (boss) return false; const next = firstBossScore + bossCount * bossInterval; return score >= next; }
-    function update() { if (gameState !== 'playing') return; if (isTouchDevice()) updateTouchControls(); stars.forEach(s => s.update()); if(player) player.update(); if (boss) { boss.update(); } else { enemySpawnTimer--; if (enemySpawnTimer <= 0) { const r = Math.random(); if (r < 0.2) enemies.push(new ChaserEnemy()); else if (r < 0.4) enemies.push(new ShooterEnemy()); else if (r < 0.6) enemies.push(new ZigZagEnemy()); else enemies.push(new Enemy()); enemySpawnTimer = Math.max(15, 70 - score / 300); } } if (shouldSpawnBoss()) { spawnBoss(); } [bullets, enemies, particles, powerUps].forEach(arr => arr.forEach(item => item.update())); checkCollisions(); bullets = bullets.filter(b => b.y < elements.canvas.height + 100 && b.y > -100 && b.x > -100 && b.x < elements.canvas.width+100 && (!b.life || b.life > 0)); enemies = enemies.filter(e => e.y < elements.canvas.height + e.height && e.hp > 0); particles = particles.filter(p => p.life > 0); powerUps = powerUps.filter(p => p.y < elements.canvas.height + p.height); }
+    function update() { if (gameState !== 'playing') return; stars.forEach(s => s.update()); if(player) player.update(); if (boss) { boss.update(); } else { enemySpawnTimer--; if (enemySpawnTimer <= 0) { const r = Math.random(); if (r < 0.2) enemies.push(new ChaserEnemy()); else if (r < 0.4) enemies.push(new ShooterEnemy()); else if (r < 0.6) enemies.push(new ZigZagEnemy()); else enemies.push(new Enemy()); enemySpawnTimer = Math.max(15, 70 - score / 300); } } if (shouldSpawnBoss()) { spawnBoss(); } [bullets, enemies, particles, powerUps].forEach(arr => arr.forEach(item => item.update())); checkCollisions(); bullets = bullets.filter(b => b.y < elements.canvas.height + 100 && b.y > -100 && b.x > -100 && b.x < elements.canvas.width+100 && (!b.life || b.life > 0)); enemies = enemies.filter(e => e.y < elements.canvas.height + e.height && e.hp > 0); particles = particles.filter(p => p.life > 0); powerUps = powerUps.filter(p => p.y < elements.canvas.height + p.height); }
     function draw() { const { ctx, scoreDisplay, weaponLevelDisplay, healthDisplay, bossHpBar, bossHpContainer, canvas } = elements; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height); stars.forEach(s => s.draw()); if (gameState !== 'playing' || !player) return; player.draw(); if (boss) boss.draw(); [bullets, enemies, particles, powerUps].forEach(arr => arr.forEach(item => item.draw())); if(scoreDisplay) scoreDisplay.textContent = `SCORE: ${score}`; if(weaponLevelDisplay) weaponLevelDisplay.textContent = player.weaponLevel >= 50 ? 'LV.MAX!!' : `LV.${player.weaponLevel}`; if(healthDisplay) healthDisplay.textContent = `HP: ${'❤️'.repeat(Math.max(0,player.hp))}`; if (boss && boss.hp > 0) { if(bossHpContainer) bossHpContainer.style.display = 'block'; if(bossHpBar) bossHpBar.style.width = `${Math.max(0, boss.hp / boss.maxHp * 100)}%`; } else if (bossHpContainer && bossHpContainer.style.display !== 'none') { bossHpContainer.style.display = 'none'; } }
     function checkCollisions() { if(!player) return; bullets.forEach(b => { if (b.type === 'player') { const targets = boss ? [boss, ...enemies] : enemies; for(const e of targets) { if (e && e.hp > 0 && Math.hypot(b.x - e.x, b.y - e.y) < e.width/2 + b.width/2) { e.hp -= b.damage; b.y = -1000; if(e.hp <= 0) onEnemyDestroy(e); }}; } else { if (Math.hypot(b.x-player.x, b.y-player.y) < player.width/2) { player.takeDamage(); b.y = 1000; } } }); enemies.forEach(e => { if (e.hp > 0 && Math.hypot(player.x - e.x, player.y - e.y) < (player.width/2 + e.width/2) * 0.8 ) { player.takeDamage(); e.hp = 0; onEnemyDestroy(e); }}); 
         const collectedPowerUps = []; powerUps.forEach(p => { if (Math.hypot(player.x - p.x, player.y - p.y) < 40) {
@@ -193,9 +192,55 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     function gameLoop() { animationFrameId = requestAnimationFrame(gameLoop); try { if (gameState === 'playing') { update(); draw(); } if (gameState === 'gameOver') { showGameOver(); } } catch(e) { cancelAnimationFrame(animationFrameId); window.onerror(e.message, 'gameLoop', 0, 0, e); } }
     function showGameOver() { if(gameState === 'gameOver') { gameState = 'ended'; if(animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; AudioEngine.stopBGM(); const { touchControls, finalScoreDisplay, gameOverScreen, hud, bossHpContainer, canvas } = elements; if (isTouchDevice() && touchControls) touchControls.style.display = 'none'; const playerX = player ? player.x : canvas.width/2; const playerY = player ? player.y : canvas.height/2; createExplosion(playerX, playerY, ['#fff', '#0ff', '#f0f'], 100); player = null; if(finalScoreDisplay) finalScoreDisplay.textContent = score; if(gameOverScreen) gameOverScreen.style.display = 'flex'; if(hud) hud.style.display = 'none'; if(bossHpContainer) bossHpContainer.style.display = 'none'; } }
     function isTouchDevice() { return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0); }
-    function handleTouchStart(e) { e.preventDefault(); const touches = e.changedTouches; for (let i = 0; i < touches.length; i++) { const touch = touches[i]; const target = touch.target; if (target.id === 'joystick-area' && !touchState.joy.active) { touchState.joy.active = true; touchState.joy.id = touch.identifier; touchState.joy.x = touch.clientX; touchState.joy.y = touch.clientY; } } }
-    function handleTouchMove(e) { e.preventDefault(); const touches = e.changedTouches; for (let i = 0; i < touches.length; i++) { const touch = touches[i]; if (touchState.joy.active && touch.identifier === touchState.joy.id) { if(player) { const rect = elements.canvas.getBoundingClientRect(); const scaleX = elements.canvas.width / rect.width; const scaleY = elements.canvas.height / rect.height; player.x = (touch.clientX - rect.left) * scaleX; player.y = (touch.clientY - rect.top) * scaleY; } } } }
-    function handleTouchEnd(e) { e.preventDefault(); const touches = e.changedTouches; for (let i = 0; i < touches.length; i++) { const touch = touches[i]; if (touchState.joy.active && touch.identifier === touchState.joy.id) { touchState.joy.active = false; touchState.joy.id = null; } } }
+    
+    // ★修正2: タッチ操作処理を全面的に改善
+    function movePlayerToTouch(touch) {
+        if (!player) return;
+        const rect = elements.canvas.getBoundingClientRect();
+        const scaleX = elements.canvas.width / rect.width;
+        const scaleY = elements.canvas.height / rect.height;
+        let x = (touch.clientX - rect.left) * scaleX;
+        let y = (touch.clientY - rect.top) * scaleY;
+
+        // プレイヤーが画面外にはみ出さないように制限
+        player.x = Math.max(player.width / 2, Math.min(elements.canvas.width - player.width / 2, x));
+        player.y = Math.max(player.height / 2, Math.min(elements.canvas.height - player.height / 2, y));
+    }
+
+    function handleTouchStart(e) {
+        e.preventDefault();
+        if (!touchState.active && player) {
+            const touch = e.changedTouches[0];
+            touchState.active = true;
+            touchState.id = touch.identifier;
+            movePlayerToTouch(touch);
+        }
+    }
+
+    function handleTouchMove(e) {
+        e.preventDefault();
+        if (touchState.active && player) {
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === touchState.id) {
+                    movePlayerToTouch(touch);
+                    break;
+                }
+            }
+        }
+    }
+
+    function handleTouchEnd(e) {
+        e.preventDefault();
+        if (touchState.active) {
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === touchState.id) {
+                    touchState.active = false;
+                    touchState.id = null;
+                    break;
+                }
+            }
+        }
+    }
     
     document.addEventListener('DOMContentLoaded', () => {
         elements = { canvas: document.getElementById('game-canvas'), titleScreen: document.getElementById('title-screen'), loadingScreen: document.getElementById('loading-screen'), gameOverScreen: document.getElementById('game-over-screen'), hud: document.getElementById('hud'), touchControls: document.getElementById('touch-controls'), bossHpContainer: document.getElementById('boss-hp-container'), bossHpBar: document.getElementById('boss-hp-bar'), joystickKnob: document.getElementById('joystick-knob'), touchToStart: document.getElementById('touch-to-start'), startButton: document.getElementById('start-button'), retryButton: document.getElementById('retry-button'), finalScoreDisplay: document.getElementById('final-score'), scoreDisplay: document.getElementById('score-display'), weaponLevelDisplay: document.getElementById('weapon-level-display'), healthDisplay: document.getElementById('health-display'), mainBgm: document.getElementById('bgm-main'), bossBgm: document.getElementById('bgm-boss'), };
@@ -209,7 +254,8 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             const rect = elements.canvas.getBoundingClientRect();
             elements.canvas.width = rect.width * dpr;
             elements.canvas.height = rect.height * dpr;
-            ctx.scale(dpr, dpr);
+            // ★修正3: この行を削除。高DPI対応で解像度を上げた場合、座標系のスケールは不要。これが描画崩れの主な原因。
+            // ctx.scale(dpr, dpr); 
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
@@ -222,25 +268,34 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             elements.loadingScreen.style.display = 'none';
             init();
             AudioEngine.playBGM('main');
+        }
+        
+        // イベントリスナーを一度だけ設定するフラグ
+        let gameListenersAttached = false;
+        function setupListeners() {
+            if (gameListenersAttached) return;
+            
             if (isTouchDevice()) {
-                document.addEventListener('touchstart', handleTouchStart, { passive: false });
-                document.addEventListener('touchmove', handleTouchMove, { passive: false });
-                document.addEventListener('touchend', handleTouchEnd, { passive: false });
-                document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+                document.body.classList.add('touch-device');
+                // ゲーム操作用のリスナー
+                elements.touchControls.addEventListener('touchstart', handleTouchStart, { passive: false });
+                elements.touchControls.addEventListener('touchmove', handleTouchMove, { passive: false });
+                elements.touchControls.addEventListener('touchend', handleTouchEnd, { passive: false });
+                elements.touchControls.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+                // スタートとリトライのリスナー
+                elements.touchToStart.addEventListener('touchstart', function oneTimeInit(e) { e.preventDefault(); AudioEngine.unlock(); runGame(); }, { once: true });
+                // ★修正4: iOSではclickよりtouchstartが確実な場合があるため変更
+                elements.retryButton.addEventListener('touchstart', () => { window.location.reload(); });
+            } else {
+                document.body.classList.add('non-touch-device');
+                // PC用のリスナー
+                elements.startButton.addEventListener('click', () => { AudioEngine.unlock(); runGame(); });
+                elements.retryButton.addEventListener('click', () => { window.location.reload(); });
             }
+            gameListenersAttached = true;
         }
 
-        if (isTouchDevice()) {
-            document.body.classList.add('touch-device');
-            elements.touchToStart.style.display = 'flex';
-            elements.touchToStart.addEventListener('touchstart', function oneTimeInit(e) { e.preventDefault(); AudioEngine.unlock(); runGame(); }, { once: true });
-            elements.retryButton.addEventListener('click', () => { window.location.reload(); });
-        } else {
-            document.body.classList.add('non-touch-device');
-            const pcStartGame = () => { AudioEngine.unlock(); runGame(); };
-            elements.startButton.addEventListener('click', pcStartGame);
-            elements.retryButton.addEventListener('click', () => { window.location.reload(); });
-        }
+        setupListeners();
     });
 })();
 </script>
