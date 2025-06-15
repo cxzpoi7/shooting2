@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GALAXY STRIKER (v25.1 - FINAL)</title>
+    <title>GALAXY STRIKER (v26.0 - FINAL)</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; background-color: #000; color: #fff; font-family: 'Courier New', Courier, monospace; width: 100%; height: 100%; -webkit-text-size-adjust: 100%; touch-action: none; }
         #game-container { position: relative; width: 100%; height: 100%; box-shadow: 0 0 25px #f0f; border: 2px solid #505; box-sizing: border-box; display: flex; justify-content: center; align-items: center; background: #000; }
@@ -35,7 +35,7 @@
     <audio id="bgm-boss" src="shooting2.mp3" loop></audio>
 
     <div id="game-container">
-        <canvas id="game-canvas" width="1000" height="750"></canvas>
+        <canvas id="game-canvas"></canvas>
         <div id="boss-hp-container"><div id="boss-hp-bar"></div></div>
         <div id="hud">
             <span id="score-display"></span>
@@ -44,7 +44,7 @@
         </div>
         <div id="ui-layer">
             <div id="title-screen">
-                <h1>GALAXY STRIKER<br><span style="font-size:.5em;">- FINAL BUILD (v25.1) -</span></h1>
+                <h1>GALAXY STRIKER<br><span style="font-size:.5em;">- FINAL (v26.0) -</span></h1>
                 <p class="instruction keyboard-instruction">移動: マウスカーソル</p>
                 <p class="instruction touch-instruction">画面をタップしてスタート</p>
                 <p class="instruction">武器は最大50段階まで強化可能！</p>
@@ -52,8 +52,8 @@
             </div>
             <div id="loading-screen" style="display:none;flex-direction:column"><h2>NOW LOADING...</h2></div>
             <div id="game-over-screen" style="display:none;flex-direction:column">
-                <h2>GAME OVER</h2><p>最終スコア: <span id="final-score">0</span></p><br>
-                <button id="retry-button">もう一度プレイ</button>
+              <h2>GAME OVER</h2><p>最終スコア: <span id="final-score">0</span></p><br>
+              <button id="retry-button">もう一度プレイ</button>
             </div>
         </div>
         <div id="touch-controls">
@@ -82,7 +82,7 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     const bossInterval = 30000;
     
     const images = { player: null, enemy1: null, enemy2: null, enemy3: null, boss: null };
-    const imageSources = { player: './player.png', enemy1: './enemy1.png', enemy2: './enemy2.png', enemy3: './enemy3.png', boss: './boss.png' };
+    const imageSources = { player: 'player.png', enemy1: 'enemy1.png', enemy2: 'enemy2.png', enemy3: 'enemy3.png', boss: 'boss.png' };
     
     function removeWhite(img) {
         if (!img) return null;
@@ -123,9 +123,9 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
         unlock() {
             if (this.isUnlocked) return;
             this.isUnlocked = true;
-            const ctx = this._getAudioContext();
-            if (ctx && ctx.state === 'suspended') {
-                ctx.resume();
+            const context = this._getAudioContext();
+            if (context && context.state === 'suspended') {
+                context.resume();
             }
             elements.mainBgm.play().catch(()=>{}); elements.mainBgm.pause();
             elements.bossBgm.play().catch(()=>{}); elements.bossBgm.pause();
@@ -203,6 +203,16 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
         elements.ctx = ctx;
         gameState = 'title';
         keys = {};
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = elements.canvas.getBoundingClientRect();
+            elements.canvas.width = rect.width * dpr;
+            elements.canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
         async function runGame() {
             elements.titleScreen.style.display = 'none';
