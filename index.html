@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GALAXY STRIKER (v27.1 - FIXED)</title>
+    <title>GALAXY STRIKER (v27.2 - ITEM DROP FIX)</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; background-color: #000; color: #fff; font-family: 'Courier New', Courier, monospace; width: 100%; height: 100%; -webkit-text-size-adjust: 100%; touch-action: none; }
         #game-container { position: relative; width: 100%; height: 100%; box-shadow: 0 0 25px #f0f; border: 2px solid #505; box-sizing: border-box; display: flex; justify-content: center; align-items: center; background: #000; }
@@ -42,7 +42,7 @@
         <div id="mute-button">🔊</div>
         <div id="ui-layer">
             <div id="title-screen">
-                <h1>GALAXY STRIKER<br><span style="font-size:.5em;">- REARMED (v27.1) -</span></h1>
+                <h1>GALAXY STRIKER<br><span style="font-size:.5em;">- REARMED (v27.2) -</span></h1>
                 <p class="instruction keyboard-instruction">移動: マウスカーソル</p>
                 <p class="instruction touch-instruction">画面をタップしてスタート</p>
                 <p class="instruction">武器は最大10段階まで強化！多彩な攻撃を使いこなせ！</p>
@@ -265,14 +265,31 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
         elements.healthDisplay.textContent = `HP: ${'❤️'.repeat(Math.max(0,player.hp))}`;
         if (boss && boss.hp > 0) { elements.bossHpContainer.style.display = 'block'; elements.bossHpBar.style.width = `${Math.max(0, boss.hp / boss.maxHp * 100)}%`; } else if (elements.bossHpContainer.style.display !== 'none') { elements.bossHpContainer.style.display = 'none'; }
     }
-    function checkCollisions() { if(!player) return; bullets.forEach(b => { if (b.type === 'player') { const targets = boss ? [boss, ...enemies] : enemies; for(const e of targets) { if (e && e.hp > 0 && Math.hypot(b.x - e.x, b.y - e.y) < e.width/2 + b.width/2) { e.hp -= b.damage; if (!b.penetrating) { b.y = -1000; } if(e.hp <= 0) onEnemyDestroy(e); if (!b.penetrating) break; }
-            } // ★修正: forループの後の不要なセミコロンを削除しました。これが構文エラーの原因でした。
-        } else { if (Math.hypot(b.x-player.x, b.y-player.y) < player.width/2) { player.takeDamage(); b.y = 1000; } } }); enemies.forEach(e => { if (e.hp > 0 && Math.hypot(player.x - e.x, player.y - e.y) < (player.width/2 + e.width/2) * 0.8 ) { player.takeDamage(); e.hp = 0; onEnemyDestroy(e); }}); 
+    function checkCollisions() { if(!player) return; bullets.forEach(b => { if (b.type === 'player') { const targets = boss ? [boss, ...enemies] : enemies; for(const e of targets) { if (e && e.hp > 0 && Math.hypot(b.x - e.x, b.y - e.y) < e.width/2 + b.width/2) { e.hp -= b.damage; if (!b.penetrating) { b.y = -1000; } if(e.hp <= 0) onEnemyDestroy(e); if (!b.penetrating) break; } } } else { if (Math.hypot(b.x-player.x, b.y-player.y) < player.width/2) { player.takeDamage(); b.y = 1000; } } }); enemies.forEach(e => { if (e.hp > 0 && Math.hypot(player.x - e.x, player.y - e.y) < (player.width/2 + e.width/2) * 0.8 ) { player.takeDamage(); e.hp = 0; onEnemyDestroy(e); }}); 
         const collectedPowerUps = []; powerUps.forEach(p => { if (Math.hypot(player.x - p.x, player.y - p.y) < 40) {
             if (p.type === 'heart') { player.heal(); } 
             else if (p.type === 'powerup') { player.powerUp(); }
             collectedPowerUps.push(p); } }); if(collectedPowerUps.length > 0) powerUps = powerUps.filter(p => !collectedPowerUps.includes(p)); }
-    function onEnemyDestroy(e) { AudioEngine.playExplosion(); if (e.score) score += e.score; createExplosion(e.x, e.y, ['#fff', '#f0f', '#ff0'], 40); if(e instanceof Boss) { boss = null; bossCount++; AudioEngine.playBGM('main'); } else { const r = Math.random(); if (r < 0.025) { powerUps.push(new HeartItem(e.x, e.y)); } else if (r < 0.075) { powerUps.push(new PowerUp(e.x, e.y)); } } }
+    
+    // ★修正: アイテム発生確率を元の値に戻しました
+    function onEnemyDestroy(e) {
+        AudioEngine.playExplosion();
+        if (e.score) score += e.score;
+        createExplosion(e.x, e.y, ['#fff', '#f0f', '#ff0'], 40);
+        if(e instanceof Boss) {
+            boss = null;
+            bossCount++;
+            AudioEngine.playBGM('main');
+        } else {
+            const r = Math.random();
+            if (r < 0.05) { // ハートアイテム: 5%
+                powerUps.push(new HeartItem(e.x, e.y));
+            } else if (r < 0.15) { // パワーアップアイテム: 10%
+                powerUps.push(new PowerUp(e.x, e.y));
+            }
+        }
+    }
+
     function spawnBoss() { enemies = []; boss = new Boss(); AudioEngine.playBGM('boss'); }
     function createExplosion(x, y, colors, count = 20) { for (let i = 0; i < count; i++) { const color = colors[Math.floor(Math.random() * colors.length)]; particles.push(new Particle(x, y, color, Math.random() * 3 + 1, Math.random() * 8 + 2)); } }
     function gameLoop() { animationFrameId = requestAnimationFrame(gameLoop); try { if (gameState === 'playing') { update(); draw(); } if (gameState === 'gameOver') { showGameOver(); } } catch(e) { cancelAnimationFrame(animationFrameId); window.onerror(e.message, 'gameLoop', 0, 0, e); } }
