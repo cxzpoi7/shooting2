@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GALAXY STRIKER (v26.2 - FINAL)</title>
+    <title>GALAXY STRIKER (v26.3 - FINAL)</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; background-color: #000; color: #fff; font-family: 'Courier New', Courier, monospace; width: 100%; height: 100%; -webkit-text-size-adjust: 100%; touch-action: none; }
         #game-container { position: relative; width: 100%; height: 100%; box-shadow: 0 0 25px #f0f; border: 2px solid #505; box-sizing: border-box; display: flex; justify-content: center; align-items: center; background: #000; }
@@ -14,8 +14,9 @@
         .instruction { font-size: min(4vw, 1.2em); }
         button { font-size: min(5vw, 1.5em); padding: 10px 30px; background-color: #0ff; color: #000; border: none; border-radius: 5px; cursor: pointer; transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
         button:active { background-color: #fff; box-shadow: 0 0 15px #fff; }
-        #hud { position: absolute; top: 10px; left: 10px; width: calc(100% - 20px); display: none; justify-content: space-between; font-size: min(6vw, 2.6em); text-shadow: 2px 2px 3px #000; pointer-events: none; z-index: 5; }
-        #hud span { padding: 8px 14px; }
+        #hud { position: absolute; top: 10px; left: 10px; width: calc(100% - 20px); display: none; justify-content: space-between; align-items: center; pointer-events: none; z-index: 5; }
+        /* ★修正: HP表示のサイズ調整 */
+        #hud span { padding: 6px 10px; font-size: min(5vw, 2.2em); text-shadow: 2px 2px 3px #000; }
         #boss-hp-container { position: absolute; top: 15px; left: 15%; width: 70%; height: 32px; background: #555; border: 2px solid #fff; display: none; z-index: 5; }
         #boss-hp-bar { width: 100%; height: 100%; background: linear-gradient(to left,#f00,#f80); transition: width .2s linear; }
         #touch-controls { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 20; }
@@ -24,6 +25,8 @@
         #touch-to-start { position: absolute; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 30; display: none; justify-content: center; align-items: center; animation: fadeIn 1s ease; pointer-events: auto; }
         #loading-screen { flex-direction: column; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* ★追加: ミュートボタンのスタイル */
+        #mute-button { position: absolute; top: 10px; right: 10px; z-index: 25; font-size: min(8vw, 2.5em); cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent; text-shadow: 2px 2px 3px #000; }
     </style>
 </head>
 <body>
@@ -38,12 +41,14 @@
             <span id="weapon-level-display"></span>
             <span id="health-display"></span>
         </div>
+        <!-- ★追加: ミュートボタン -->
+        <div id="mute-button">🔊</div>
         <div id="ui-layer">
             <div id="title-screen">
-                <h1>GALAXY STRIKER<br><span style="font-size:.5em;">- FINAL (v26.2) -</span></h1>
+                <h1>GALAXY STRIKER<br><span style="font-size:.5em;">- FINAL (v26.3) -</span></h1>
                 <p class="instruction keyboard-instruction">移動: マウスカーソル</p>
                 <p class="instruction touch-instruction">画面をタップしてスタート</p>
-                <p class="instruction">武器は最大50段階まで強化可能！</p>
+                <p class="instruction">武器は最大10段階まで強化可能！</p>
                 <button id="start-button">ゲームスタート</button>
             </div>
             <div id="loading-screen" style="display:none;flex-direction:column"><h2>NOW LOADING...</h2></div>
@@ -68,6 +73,8 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     let elements = {};
     let ctx;
     let logicalWidth, logicalHeight;
+    // ★追加: ミュート状態管理フラグ
+    let isMuted = false;
 
     let bossCount = 0;
     const firstBossScore = 10000;
@@ -123,7 +130,7 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             elements.bossBgm.play().catch(()=>{}); elements.bossBgm.pause();
         },
         playBGM(type = 'main') {
-            if (!this.isUnlocked) return;
+            if (!this.isUnlocked || isMuted) return; // ミュートチェック
             this.stopBGM();
             const targetBgm = type === 'boss' ? elements.bossBgm : elements.mainBgm;
             targetBgm.currentTime = 0;
@@ -133,9 +140,17 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             if (!elements.mainBgm.paused) { elements.mainBgm.pause(); }
             if (!elements.bossBgm.paused) { elements.bossBgm.pause(); }
         },
+        toggleMute(mute) {
+            isMuted = mute;
+            if (isMuted) {
+                this.stopBGM();
+            } else {
+                if(gameState === 'playing') this.playBGM(boss ? 'boss' : 'main');
+            }
+        },
         ctx: null,
         _getAudioContext() { if (!this.ctx && this.isUnlocked) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ console.error(e); } } return this.ctx; },
-        playSound(generator) { const ctx = this._getAudioContext(); if (!ctx) return; generator(ctx); },
+        playSound(generator) { if (isMuted) return; const ctx = this._getAudioContext(); if (!ctx) return; generator(ctx); }, // ミュートチェック
         playShot() { this.playSound(ctx => { const t = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.type = 'triangle'; o.frequency.setValueAtTime(880, t); g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1); o.start(t); o.stop(t + 0.1); }); },
         playExplosion() { this.playSound(ctx => { const t = ctx.currentTime; const bS = ctx.sampleRate * 0.5; const b = ctx.createBuffer(1, bS, ctx.sampleRate); const o = b.getChannelData(0); for (let i = 0; i < bS; i++) { o[i] = Math.random() * 2 - 1; } const n = ctx.createBufferSource(); n.buffer = b; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(2000, t); f.frequency.exponentialRampToValueAtTime(100, t + 0.3); const g = ctx.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4); n.connect(f); f.connect(g); g.connect(ctx.destination); n.start(t); n.stop(t + 0.5); }); },
         playPowerUp() { this.playSound(ctx => { const t = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.type = 'sine'; o.frequency.setValueAtTime(523, t); o.frequency.exponentialRampToValueAtTime(1046, t + 0.2); g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2); o.start(t); o.stop(t + 0.2); }); },
@@ -143,18 +158,72 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     };
 
     class Player {
-        constructor() { this.x = logicalWidth / 2; this.y = logicalHeight - 100; this.width = 48; this.height = 48; this.hp = 3; this.maxHp = 3; this.mainShootCooldown = 0; this.subShootCooldown = 0; this.weaponLevel = 1; }
+        constructor() { this.x = logicalWidth / 2; this.y = logicalHeight - 100; this.width = 48; this.height = 48; this.hp = 3; this.maxHp = 3; this.mainShootCooldown = 0; this.weaponLevel = 1; this.bitAngle = 0; }
         update() {
             if (this.mainShootCooldown <= 0) this.shootMain();
-            if (this.subShootCooldown <= 0) { this.shootSub(); this.subShootCooldown = 15; }
             if (this.mainShootCooldown > 0) this.mainShootCooldown--;
-            if (this.subShootCooldown > 0) this.subShootCooldown--;
+            if (this.weaponLevel >= 10) { this.bitAngle = (this.bitAngle + 0.05) % (Math.PI * 2); }
         }
-        draw() { if (images.player) { ctx.drawImage(images.player, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#0CF'; ctx.beginPath(); ctx.moveTo(this.x, this.y - this.height / 2); ctx.lineTo(this.x + this.width / 2, this.y + this.height / 2); ctx.lineTo(this.x - this.width / 2, this.y + this.height / 2); ctx.closePath(); ctx.fill(); ctx.restore(); } }
-        shootMain() { AudioEngine.playShot(); const lv = this.weaponLevel; this.mainShootCooldown = Math.max(1, 8 - Math.floor(lv / 6)); const baseDamage = 1 + Math.floor(lv / 4); const shootY = this.y - this.height / 2; bullets.push(new Bullet(this.x, shootY, { vy: -18, damage: baseDamage })); if (lv >= 2) bullets.push(new Bullet(this.x - 10, shootY, { vy: -18, damage: baseDamage })); if (lv >= 3) bullets.push(new Bullet(this.x + 10, shootY, { vy: -18, damage: baseDamage })); if (lv >= 4) bullets.push(new Bullet(this.x, shootY, { vy: -16, vx: -2, color: '#afa', damage: baseDamage })); if (lv >= 5) bullets.push(new Bullet(this.x, shootY, { vy: -16, vx: 2, color: '#afa', damage: baseDamage })); if (lv >= 6) { bullets.push(new Bullet(this.x, shootY, { vy: -14, vx: -4, color: '#afa', damage: baseDamage })); bullets.push(new Bullet(this.x, shootY, { vy: -14, vx: 4, color: '#afa', damage: baseDamage })); } const laserDamage = 3 + Math.floor(lv / 3); if (lv >= 7 && this.mainShootCooldown % 4 === 0) bullets.push(new Bullet(this.x - 20, shootY, { shape: 'beam', damage: laserDamage })); if (lv >= 8 && this.mainShootCooldown % 4 === 0) bullets.push(new Bullet(this.x + 20, shootY, { shape: 'beam', damage: laserDamage })); if (lv >= 9 && this.mainShootCooldown % 4 === 0) bullets.push(new Bullet(this.x, shootY, { shape: 'beam', vy: -40, color: '#fff', damage: laserDamage + 2})); const missileDamage = 2 + Math.floor(lv / 5); if (lv >= 10 && this.mainShootCooldown < 3) bullets.push(new Bullet(this.x - 15, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: missileDamage })); if (lv >= 12 && this.mainShootCooldown < 3) bullets.push(new Bullet(this.x + 15, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: missileDamage })); if (lv >= 15 && this.mainShootCooldown % 10 === 0) bullets.push(new Bullet(this.x, shootY, { shape: 'ball', damage: 10 + (lv-15)*2 })); if (lv >= 19) { bullets.push(new Bullet(this.x, this.y, { vy: 15, color: '#ccc', damage: baseDamage })); } if (lv >= 20) { this.mainShootCooldown = 2; for(let i=-1; i<=1; i++) bullets.push(new Bullet(this.x + i * 20, this.y, {vy: 15, color: '#ccc', damage: baseDamage})); } if (lv >= 21) { bullets.push(new Bullet(this.x, shootY, { vy: -12, vx: -6, color: '#afa', damage: baseDamage })); bullets.push(new Bullet(this.x, shootY, { vy: -12, vx: 6, color: '#afa', damage: baseDamage })); } if (lv >= 25) { bullets.push(new Bullet(this.x, shootY, { vy: -10, vx: -8, color: '#afa', damage: baseDamage })); bullets.push(new Bullet(this.x, shootY, { vy: -10, vx: 8, color: '#afa', damage: baseDamage })); } if (lv >= 26 && this.mainShootCooldown % 4 === 0) { bullets.push(new Bullet(this.x - 10, shootY, { shape: 'beam', vx: -1, damage: laserDamage, color: '#ff9800' })); bullets.push(new Bullet(this.x + 10, shootY, { shape: 'beam', vx: 1, damage: laserDamage, color: '#ff9800' }));} if (lv >= 31 && this.mainShootCooldown < 2) { bullets.push(new Bullet(this.x - 30, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: missileDamage, color: '#f0f' })); bullets.push(new Bullet(this.x + 30, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: missileDamage, color: '#f0f' })); } if (lv >= 36 && this.mainShootCooldown % 7 === 0) { bullets.push(new Bullet(this.x, shootY, { shape: 'ball', damage: 20 + (lv-30)*2, color: '#f0f' })); } if (lv >= 41) { bullets.push(new Bullet(this.x - 30, this.y, { vy: 15, vx: -2, color: '#ccc', damage: baseDamage })); bullets.push(new Bullet(this.x + 30, this.y, { vy: 15, vx: 2, color: '#ccc', damage: baseDamage })); } if (lv >= 46 && this.mainShootCooldown % 5 === 0) { const angle = (performance.now() / 100) % (Math.PI * 2); for (let i = 0; i < 4; i++) { const currentAngle = angle + (i / 4) * Math.PI * 2; bullets.push(new Bullet(this.x, this.y, { vy: Math.sin(currentAngle) * 10, vx: Math.cos(currentAngle) * 10, color: '#FFEB3B', damage: baseDamage })); } } if (lv >= 50) { this.mainShootCooldown = 1; bullets.push(new Bullet(this.x, shootY, { shape: 'beam', vy: -50, color: '#fff', damage: 50, width: 10 })); if (this.mainShootCooldown % 2 === 0) { bullets.push(new Bullet(this.x, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: missileDamage*2, color:'#c2185b' })); } } }
-        shootSub() { for(let i=-2; i<=2; i++) if(i!==0) bullets.push(new Bullet(this.x, this.y - this.height/2, { vy: -12, vx: i*2, color: '#ff0' })); }
-        takeDamage(damage = 1) { AudioEngine.playDamage(); this.hp -= damage; if (this.weaponLevel > 1) this.weaponLevel = Math.max(1, this.weaponLevel - (damage > 1 ? 2 : 1)); createExplosion(this.x, this.y, ['#ff0', '#f90', '#f00']); if (this.hp <= 0) { gameState = 'gameOver'; } }
-        powerUp() { if (this.weaponLevel < 50) { this.weaponLevel++; this.mainShootCooldown = 0; AudioEngine.playPowerUp(); } }
+        draw() {
+            if (this.weaponLevel >= 10) {
+                ctx.save();
+                ctx.fillStyle = '#FFEB3B';
+                ctx.shadowColor = '#FFEB3B';
+                ctx.shadowBlur = 15;
+                for (let i = 0; i < 2; i++) {
+                    const angle = this.bitAngle + i * Math.PI;
+                    const bitX = this.x + Math.cos(angle) * 60;
+                    const bitY = this.y + Math.sin(angle) * 40;
+                    ctx.beginPath();
+                    ctx.arc(bitX, bitY, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+            if (images.player) { ctx.drawImage(images.player, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#0CF'; ctx.beginPath(); ctx.moveTo(this.x, this.y - this.height / 2); ctx.lineTo(this.x + this.width / 2, this.y + this.height / 2); ctx.lineTo(this.x - this.width / 2, this.y + this.height / 2); ctx.closePath(); ctx.fill(); ctx.restore(); }
+        }
+        // ★修正: 武器システムを10段階に刷新
+        shootMain() {
+            AudioEngine.playShot();
+            const lv = this.weaponLevel;
+            this.mainShootCooldown = Math.max(2, 10 - lv);
+            const baseDamage = 1 + Math.floor(lv / 2);
+            const shootY = this.y - this.height / 2;
+
+            // Lv1: 単発ショット
+            bullets.push(new Bullet(this.x, shootY, { vy: -15, damage: baseDamage }));
+            // Lv2: 2連ショット
+            if (lv >= 2) { bullets.push(new Bullet(this.x - 8, shootY, { vy: -15, damage: baseDamage })); bullets.push(new Bullet(this.x + 8, shootY, { vy: -15, damage: baseDamage })); }
+            // Lv3: 3-Wayショット
+            if (lv >= 3) { bullets.push(new Bullet(this.x, shootY, { vy: -14, vx: -2, color: '#afa', damage: baseDamage })); bullets.push(new Bullet(this.x, shootY, { vy: -14, vx: 2, color: '#afa', damage: baseDamage })); }
+            // Lv4: 射撃レートUP (mainShootCooldownで対応済み) & 弾速UP
+            if (lv >= 4) { bullets.forEach(b => { if(b.y === shootY) b.vy = -18; }); }
+            // Lv5: 5-Wayショット
+            if (lv >= 5) { bullets.push(new Bullet(this.x, shootY, { vy: -12, vx: -4, color: '#afa', damage: baseDamage })); bullets.push(new Bullet(this.x, shootY, { vy: -12, vx: 4, color: '#afa', damage: baseDamage })); }
+            // Lv6: 誘導ミサイル
+            if (lv >= 6 && this.mainShootCooldown % 10 === 0) { bullets.push(new Bullet(this.x - 20, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: 5 + lv })); bullets.push(new Bullet(this.x + 20, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: 5 + lv, color: '#f0f' })); }
+            // Lv7: 左右にサイドレーザー
+            if (lv >= 7 && this.mainShootCooldown % 4 === 0) { bullets.push(new Bullet(this.x - 30, shootY, { shape: 'beam', damage: 3 + lv, color: '#ff9800' })); bullets.push(new Bullet(this.x + 30, shootY, { shape: 'beam', damage: 3 + lv, color: '#ff9800' })); }
+            // Lv8: ミサイル強化
+            if (lv >= 8 && this.mainShootCooldown % 10 === 0) { bullets.push(new Bullet(this.x, this.y, { shape: 'missile', target: findClosestEnemy(this.x, this.y), damage: 5 + lv, color: '#fff' })); }
+            // Lv9: 中央に強力なレーザー
+            if (lv >= 9 && this.mainShootCooldown % 5 === 0) { bullets.push(new Bullet(this.x, shootY, { shape: 'beam', vy: -40, color: '#fff', damage: 10 + lv, width: 8 })); }
+            // Lv10 (MAX): 回転ビットと極太レーザー
+            if (lv >= 10) {
+                this.mainShootCooldown = 2; // 最高レート
+                // 極太レーザー
+                if (this.mainShootCooldown % 4 === 0) bullets.push(new Bullet(this.x, shootY, { shape: 'beam', vy: -50, color: '#fff', damage: 25, width: 15 }));
+                // 回転ビットからの弾
+                for (let i = 0; i < 2; i++) {
+                    const angle = this.bitAngle + i * Math.PI;
+                    const bitX = this.x + Math.cos(angle) * 60;
+                    const bitY = this.y + Math.sin(angle) * 40;
+                    bullets.push(new Bullet(bitX, bitY, { vy: -15, color: '#FFEB3B', damage: 5 }));
+                }
+            }
+        }
+        takeDamage(damage = 1) { AudioEngine.playDamage(); this.hp -= damage; if (this.weaponLevel > 1) this.weaponLevel = Math.max(1, this.weaponLevel - 1); createExplosion(this.x, this.y, ['#ff0', '#f90', '#f00']); if (this.hp <= 0) { gameState = 'gameOver'; } }
+        powerUp() { if (this.weaponLevel < 10) { this.weaponLevel++; AudioEngine.playPowerUp(); } }
         heal() { if (this.hp < this.maxHp) { this.hp++; AudioEngine.playPowerUp(); } }
     }
     class Bullet { constructor(x, y, options={}) { this.x = x; this.y = y; this.vx = options.vx ?? 0; this.vy = options.vy ?? -15; this.color = options.color ?? '#0f0'; this.damage = options.damage ?? 1; this.type = options.type ?? 'player'; this.shape = options.shape ?? 'rect'; this.target = options.target ?? null; this.turnSpeed = 0.05; switch(this.shape) { case 'beam': this.width = options.width ?? 4; this.height = options.height ?? 50; this.vy=options.vy??-35; break; case 'ball': this.radius = 8 + this.damage / 2; this.width=this.radius*2; this.height=this.radius*2; this.vy=options.vy??-8; break; case 'missile': this.width = 8; this.height = 16; this.vy=options.vy??-6; this.vx=options.vx??(Math.random()-0.5)*2; this.life=150; break; default: this.width = 3; this.height = 15; } } update() { if (this.shape === 'missile' && this.life > 0) { this.life--; if (!this.target || this.target.hp <= 0) this.target = findClosestEnemy(this.x, this.y); if (this.target) { const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x); this.vx += Math.cos(angle) * 0.5; this.vy += Math.sin(angle) * 0.5; } const speed = Math.hypot(this.vx, this.vy); if (speed > 10) { const ratio = 10 / speed; this.vx *= ratio; this.vy *= ratio; } } this.x += this.vx; this.y += this.vy; } draw() { ctx.save(); ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 15; if (this.shape === 'ball') { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); } else { ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } ctx.restore(); } }
@@ -169,48 +238,44 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     class Particle { constructor(x, y, color, size, speed) { this.x = x; this.y = y; this.color = color; this.size = size; this.speed = speed; this.life = 40; this.vx = (Math.random() - 0.5) * this.speed; this.vy = (Math.random() - 0.5) * this.speed; } update() { this.x += this.vx; this.y += this.vy; this.life--; } draw() { ctx.fillStyle = this.color; ctx.globalAlpha = this.life / 40; ctx.fillRect(this.x, this.y, this.size, this.size); ctx.globalAlpha = 1.0; } }
     
     function resetGameState() { score = 0; keys = {}; bullets = []; enemies = []; particles = []; powerUps = []; boss = null; bossCount = 0; enemySpawnTimer = 0; player = new Player(); gameState = 'playing'; if (stars.length === 0) for (let i = 0; i < 200; i++) stars.push(new Star()); }
-    function findClosestEnemy(x, y) { if (!enemies && !boss) return null; let closest = null; let minDistance = Infinity; const targets = boss ? [boss, ...enemies] : enemies; for (const e of targets) { if (!e || e.y > y) continue; const dist = Math.hypot(e.x - x, e.y - y); if (dist < minDistance) { minDistance = dist; closest = e; } } return closest; }
+    function findClosestEnemy(x, y) { if (!enemies && !boss) return null; let closest = null; let minDistance = Infinity; const targets = boss ? [boss, ...enemies] : enemies; for (const e of targets) { if (!e || e.y < 0) continue; const dist = Math.hypot(e.x - x, e.y - y); if (dist < minDistance) { minDistance = dist; closest = e; } } return closest; }
     function init() { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } resetGameState(); elements.titleScreen.style.display = 'none'; elements.gameOverScreen.style.display = 'none'; elements.hud.style.display = 'flex'; if (isTouchDevice()) { elements.touchControls.style.display = 'block'; } else { elements.canvas.addEventListener('mousemove', e => { if(player) { const rect = elements.canvas.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top; player.x = Math.max(player.width / 2, Math.min(logicalWidth - player.width / 2, x)); player.y = Math.max(player.height / 2, Math.min(logicalHeight - player.height / 2, y)); } }); } gameLoop(); }
     function shouldSpawnBoss() { if (boss) return false; const next = firstBossScore + bossCount * bossInterval; return score >= next; }
     function update() { if (gameState !== 'playing') return; stars.forEach(s => s.update()); if(player) player.update(); if (boss) { boss.update(); } else { enemySpawnTimer--; if (enemySpawnTimer <= 0) { const r = Math.random(); if (r < 0.2) enemies.push(new ChaserEnemy()); else if (r < 0.4) enemies.push(new ShooterEnemy()); else if (r < 0.6) enemies.push(new ZigZagEnemy()); else enemies.push(new Enemy()); enemySpawnTimer = Math.max(15, 70 - score / 300); } } if (shouldSpawnBoss()) { spawnBoss(); } [bullets, enemies, particles, powerUps].forEach(arr => arr.forEach(item => item.update())); checkCollisions(); bullets = bullets.filter(b => b.y < logicalHeight + 100 && b.y > -100 && b.x > -100 && b.x < logicalWidth+100 && (!b.life || b.life > 0)); enemies = enemies.filter(e => e.y < logicalHeight + e.height && e.hp > 0); particles = particles.filter(p => p.life > 0); powerUps = powerUps.filter(p => p.y < logicalHeight + p.height); }
     function draw() {
-        ctx.clearRect(0, 0, logicalWidth, logicalHeight);
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+        ctx.clearRect(0, 0, logicalWidth, logicalHeight); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, logicalWidth, logicalHeight);
         stars.forEach(s => s.draw());
         if (gameState !== 'playing' || !player) return;
-        player.draw();
-        if (boss) boss.draw();
+        player.draw(); if (boss) boss.draw();
         [bullets, enemies, particles, powerUps].forEach(arr => arr.forEach(item => item.draw()));
-        
-        // ★修正: HUD更新処理をここに集約
         elements.scoreDisplay.textContent = `SCORE: ${score}`;
-        elements.weaponLevelDisplay.textContent = player.weaponLevel >= 50 ? 'LV.MAX!!' : `LV.${player.weaponLevel}`;
+        elements.weaponLevelDisplay.textContent = player.weaponLevel >= 10 ? 'LV.MAX!!' : `LV.${player.weaponLevel}`;
         elements.healthDisplay.textContent = `HP: ${'❤️'.repeat(Math.max(0,player.hp))}`;
-        if (boss && boss.hp > 0) {
-            elements.bossHpContainer.style.display = 'block';
-            elements.bossHpBar.style.width = `${Math.max(0, boss.hp / boss.maxHp * 100)}%`;
-        } else if (elements.bossHpContainer.style.display !== 'none') {
-            elements.bossHpContainer.style.display = 'none';
-        }
+        if (boss && boss.hp > 0) { elements.bossHpContainer.style.display = 'block'; elements.bossHpBar.style.width = `${Math.max(0, boss.hp / boss.maxHp * 100)}%`; } else if (elements.bossHpContainer.style.display !== 'none') { elements.bossHpContainer.style.display = 'none'; }
     }
     function checkCollisions() { if(!player) return; bullets.forEach(b => { if (b.type === 'player') { const targets = boss ? [boss, ...enemies] : enemies; for(const e of targets) { if (e && e.hp > 0 && Math.hypot(b.x - e.x, b.y - e.y) < e.width/2 + b.width/2) { e.hp -= b.damage; b.y = -1000; if(e.hp <= 0) onEnemyDestroy(e); }}; } else { if (Math.hypot(b.x-player.x, b.y-player.y) < player.width/2) { player.takeDamage(); b.y = 1000; } } }); enemies.forEach(e => { if (e.hp > 0 && Math.hypot(player.x - e.x, player.y - e.y) < (player.width/2 + e.width/2) * 0.8 ) { player.takeDamage(); e.hp = 0; onEnemyDestroy(e); }}); 
         const collectedPowerUps = []; powerUps.forEach(p => { if (Math.hypot(player.x - p.x, player.y - p.y) < 40) {
             if (p.type === 'heart') { player.heal(); } 
             else if (p.type === 'powerup') { player.powerUp(); }
             collectedPowerUps.push(p); } }); if(collectedPowerUps.length > 0) powerUps = powerUps.filter(p => !collectedPowerUps.includes(p)); }
-    function onEnemyDestroy(e) { AudioEngine.playExplosion(); if (e.score) score += e.score; createExplosion(e.x, e.y, ['#fff', '#f0f', '#ff0'], 40); if(e instanceof Boss) { boss = null; bossCount++; AudioEngine.playBGM('main'); } else { const r = Math.random(); if (r < 0.05) { powerUps.push(new HeartItem(e.x, e.y)); } else if (r < 0.25) { powerUps.push(new PowerUp(e.x, e.y)); } } }
+    function onEnemyDestroy(e) { AudioEngine.playExplosion(); if (e.score) score += e.score; createExplosion(e.x, e.y, ['#fff', '#f0f', '#ff0'], 40); if(e instanceof Boss) { boss = null; bossCount++; AudioEngine.playBGM('main'); } else { const r = Math.random(); if (r < 0.05) { powerUps.push(new HeartItem(e.x, e.y)); } else if (r < 0.15) { powerUps.push(new PowerUp(e.x, e.y)); } } }
     function spawnBoss() { enemies = []; boss = new Boss(); AudioEngine.playBGM('boss'); }
     function createExplosion(x, y, colors, count = 20) { for (let i = 0; i < count; i++) { const color = colors[Math.floor(Math.random() * colors.length)]; particles.push(new Particle(x, y, color, Math.random() * 3 + 1, Math.random() * 8 + 2)); } }
     function gameLoop() { animationFrameId = requestAnimationFrame(gameLoop); try { if (gameState === 'playing') { update(); draw(); } if (gameState === 'gameOver') { showGameOver(); } } catch(e) { cancelAnimationFrame(animationFrameId); window.onerror(e.message, 'gameLoop', 0, 0, e); } }
     function showGameOver() { if(gameState === 'gameOver') { gameState = 'ended'; if(animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; AudioEngine.stopBGM(); if (isTouchDevice()) elements.touchControls.style.display = 'none'; const playerX = player ? player.x : logicalWidth/2; const playerY = player ? player.y : logicalHeight/2; createExplosion(playerX, playerY, ['#fff', '#0ff', '#f0f'], 100); player = null; elements.finalScoreDisplay.textContent = score; elements.gameOverScreen.style.display = 'flex'; elements.hud.style.display = 'none'; elements.bossHpContainer.style.display = 'none'; } }
     function isTouchDevice() { return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0); }
     
+    // ★修正: タッチ操作時に指と自機が重ならないようにオフセットを追加
     function movePlayerToTouch(touch) {
         if (!player) return;
         const rect = elements.canvas.getBoundingClientRect();
         let x = touch.clientX - rect.left;
         let y = touch.clientY - rect.top;
+
+        // Y座標を80px上にずらす
+        const offsetY = 80;
+        y -= offsetY;
+        
         player.x = Math.max(player.width / 2, Math.min(logicalWidth - player.width / 2, x));
         player.y = Math.max(player.height / 2, Math.min(logicalHeight - player.height / 2, y));
     }
@@ -218,7 +283,6 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     function handleTouchMove(e) { e.preventDefault(); if (player) movePlayerToTouch(e.changedTouches[0]); }
     
     document.addEventListener('DOMContentLoaded', () => {
-        // ★修正: elementsオブジェクトの構造をシンプル化
         elements = {
             canvas: document.getElementById('game-canvas'),
             touchControls: document.getElementById('touch-controls'),
@@ -237,6 +301,7 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             finalScoreDisplay: document.getElementById('final-score'),
             mainBgm: document.getElementById('bgm-main'),
             bossBgm: document.getElementById('bgm-boss'),
+            muteButton: document.getElementById('mute-button'),
         };
         ctx = elements.canvas.getContext('2d');
         gameState = 'title';
@@ -268,6 +333,13 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             AudioEngine.unlock();
             runGame();
         };
+
+        // ミュートボタンの処理
+        elements.muteButton.addEventListener('click', () => {
+            isMuted = !isMuted;
+            elements.muteButton.textContent = isMuted ? '🔇' : '🔊';
+            AudioEngine.toggleMute(isMuted);
+        });
 
         if (isTouchDevice()) {
             document.body.classList.add('touch-device');
