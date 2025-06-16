@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GALAXY STRIKER (v27.2 - ITEM DROP FIX)</title>
+    <title>GALAXY STRIKER (v28.0 - REBALANCED)</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; background-color: #000; color: #fff; font-family: 'Courier New', Courier, monospace; width: 100%; height: 100%; -webkit-text-size-adjust: 100%; touch-action: none; }
         #game-container { position: relative; width: 100%; height: 100%; box-shadow: 0 0 25px #f0f; border: 2px solid #505; box-sizing: border-box; display: flex; justify-content: center; align-items: center; background: #000; }
@@ -42,7 +42,7 @@
         <div id="mute-button">🔊</div>
         <div id="ui-layer">
             <div id="title-screen">
-                <h1>GALAXY STRIKER<br><span style="font-size:.5em;">- REARMED (v27.2) -</span></h1>
+                <h1>GALAXY STRIKER<br><span style="font-size:.5em;">- REARMED (v28.0) -</span></h1>
                 <p class="instruction keyboard-instruction">移動: マウスカーソル</p>
                 <p class="instruction touch-instruction">画面をタップしてスタート</p>
                 <p class="instruction">武器は最大10段階まで強化！多彩な攻撃を使いこなせ！</p>
@@ -50,7 +50,11 @@
             </div>
             <div id="loading-screen" style="display:none;flex-direction:column"><h2>NOW LOADING...</h2></div>
             <div id="game-over-screen" style="display:none;flex-direction:column">
-              <h2>GAME OVER</h2><p>最終スコア: <span id="final-score">0</span></p><br>
+              <h2>GAME OVER</h2>
+              <p>最終スコア: <span id="final-score">0</span></p>
+              <!-- ★ハイスコア表示欄を追加 -->
+              <p>ハイスコア: <span id="high-score">0</span></p>
+              <br>
               <button id="retry-button">もう一度プレイ</button>
             </div>
         </div>
@@ -76,6 +80,10 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
     const firstBossScore = 10000;
     const bossInterval = 30000;
     
+    // ★ハイスコア関連の変数を追加
+    let highScore = 0;
+    const HIGH_SCORE_KEY = 'galaxyStrikerHighScore_v28';
+
     const images = { player: null, enemy1: null, enemy2: null, enemy3: null, boss: null };
     const imageSources = { player: 'player.png', enemy1: 'enemy1.png', enemy2: 'enemy2.png', enemy3: 'enemy3.png', boss: 'boss.png' };
     
@@ -153,6 +161,19 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
         playDamage() { this.playSound(ctx => { const t = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.type = 'sawtooth'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(50, t + 0.3); g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3); o.start(t); o.stop(t + 0.3); }); }
     };
 
+    // ★ハイスコア読み込み/保存関数を追加
+    function loadHighScore() {
+        const savedScore = localStorage.getItem(HIGH_SCORE_KEY);
+        highScore = savedScore ? parseInt(savedScore, 10) : 0;
+    }
+
+    function saveHighScore(newScore) {
+        if (newScore > highScore) {
+            highScore = newScore;
+            localStorage.setItem(HIGH_SCORE_KEY, highScore.toString());
+        }
+    }
+
     class Player {
         constructor() { this.x = logicalWidth / 2; this.y = logicalHeight - 100; this.width = 48; this.height = 48; this.hp = 3; this.maxHp = 3; this.weaponLevel = 1; this.bitAngle = 0; this.shootCooldowns = { main: 0, missile: 0, laser: 0 }; }
         update() {
@@ -192,16 +213,9 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
                 this.shootCooldowns.main = mainShotInterval;
                 const mainDamage = 1 + Math.floor(lv / 3);
                 bullets.push(new Bullet(this.x, shootY, { vy: -15, damage: mainDamage }));
-                if (lv >= 2) {
-                    bullets.push(new Bullet(this.x, shootY + 10, { vy: -15, damage: mainDamage }));
-                }
-                if (lv >= 3) {
-                    bullets.push(new Bullet(this.x, shootY, { vy: -16, damage: mainDamage + 2, color: '#0ff', width: 5, height: 20 }));
-                }
-                if (lv >= 6) {
-                    bullets.push(new Bullet(this.x - 25, shootY, { vy: -14, vx: -1, damage: 2, color: '#afa' }));
-                    bullets.push(new Bullet(this.x + 25, shootY, { vy: -14, vx: 1, damage: 2, color: '#afa' }));
-                }
+                if (lv >= 2) { bullets.push(new Bullet(this.x, shootY + 10, { vy: -15, damage: mainDamage })); }
+                if (lv >= 3) { bullets.push(new Bullet(this.x, shootY, { vy: -16, damage: mainDamage + 2, color: '#0ff', width: 5, height: 20 })); }
+                if (lv >= 6) { bullets.push(new Bullet(this.x - 25, shootY, { vy: -14, vx: -1, damage: 2, color: '#afa' })); bullets.push(new Bullet(this.x + 25, shootY, { vy: -14, vx: 1, damage: 2, color: '#afa' })); }
                 if (lv >= 9) {
                     const bitCount = (lv >= 10) ? 2 : 1;
                      for (let i = 0; i < bitCount; i++) {
@@ -238,8 +252,91 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
         powerUp() { if (this.weaponLevel < 10) { this.weaponLevel++; AudioEngine.playPowerUp(); } }
         heal() { if (this.hp < this.maxHp) { this.hp++; AudioEngine.playPowerUp(); } }
     }
-    class Bullet { constructor(x, y, options={}) { this.x = x; this.y = y; this.vx = options.vx ?? 0; this.vy = options.vy ?? -15; this.color = options.color ?? '#0f0'; this.damage = options.damage ?? 1; this.type = options.type ?? 'player'; this.shape = options.shape ?? 'rect'; this.target = options.target ?? null; this.turnSpeed = 0.05; this.penetrating = options.penetrating ?? false; switch(this.shape) { case 'beam': this.width = options.width ?? 4; this.height = options.height ?? 50; this.vy=options.vy??-35; break; case 'ball': this.radius = 8 + this.damage / 2; this.width=this.radius*2; this.height=this.radius*2; this.vy=options.vy??-8; break; case 'missile': this.width = 8; this.height = 16; this.vy=options.vy??-6; this.vx=options.vx??(Math.random()-0.5)*2; this.life=150; break; default: this.width = 3; this.height = 15; } } update() { if (this.shape === 'missile' && this.life > 0) { this.life--; if (!this.target || this.target.hp <= 0) this.target = findClosestEnemy(this.x, this.y); if (this.target) { const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x); this.vx += Math.cos(angle) * 0.5; this.vy += Math.sin(angle) * 0.5; } const speed = Math.hypot(this.vx, this.vy); if (speed > 10) { const ratio = 10 / speed; this.vx *= ratio; this.vy *= ratio; } } this.x += this.vx; this.y += this.vy; } draw() { ctx.save(); ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = 15; if (this.shape === 'ball') { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); } else { ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } ctx.restore(); } }
-    class Boss { constructor() { this.maxHp = 600; this.hp = this.maxHp; this.x = logicalWidth / 2; this.y = -100; this.width = 96; this.height = 96; this.score = 10000; this.targetY = 120; this.state = 'enter'; this.patternTimer = 0; this.currentPattern = 0; } update() { if (this.state === 'enter') { this.y += 2; if (this.y >= this.targetY) { this.y = this.targetY; this.state = 'fight'; } return; } this.patternTimer--; if (this.patternTimer <= 0) { this.currentPattern = (this.currentPattern + 1) % 3; switch (this.currentPattern) { case 0: this.patternTimer = 60; for (let i = 0; i < 11; i++) bullets.push(new Bullet(this.x, this.y + this.height/2, {vy:7, vx:(i-5), color:'#f57c00', type:'enemy'})); break; case 1: this.patternTimer = 80; for(let i=0; i<4; i++) setTimeout(()=> {if(this.hp>0 && gameState === 'playing') bullets.push(new Bullet(this.x, this.y + this.height/2, {vy:14, color:'#f57c00', type:'enemy', damage: 2}))}, i*100); break; case 2: this.patternTimer = 100; bullets.push(new Bullet(this.x - 40, this.y + this.height/2, {shape:'missile', type:'enemy', color:'#c2185b', target:player})); bullets.push(new Bullet(this.x + 40, this.y + this.height/2, {shape:'missile', type:'enemy', color:'#c2185b', target:player})); break; } } } draw() { if (images.boss) { ctx.drawImage(images.boss, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#7B1FA2'; ctx.strokeStyle = '#9C27B0'; ctx.lineWidth = 4; ctx.fillRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height); ctx.strokeRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height); ctx.restore(); } } }
+    class Bullet { 
+        constructor(x, y, options={}) { 
+            this.x = x; this.y = y; this.vx = options.vx ?? 0; this.vy = options.vy ?? -15; this.color = options.color ?? '#0f0'; this.damage = options.damage ?? 1; this.type = options.type ?? 'player'; this.shape = options.shape ?? 'rect'; this.target = options.target ?? null; this.penetrating = options.penetrating ?? false; 
+            switch(this.shape) { 
+                case 'beam': this.width = options.width ?? 4; this.height = options.height ?? 50; this.vy=options.vy??-35; break; 
+                case 'ball': this.radius = 8 + this.damage / 2; this.width=this.radius*2; this.height=this.radius*2; this.vy=options.vy??-8; break; 
+                // ★追尾弾のプロパティを調整
+                case 'missile': 
+                    this.width = 8; this.height = 16; this.vy=options.vy??-6; this.vx=options.vx??(Math.random()-0.5)*2; this.life=150; 
+                    this.turnForce = 0.2; // 追尾の強さ（数値を下げて緩やかに）
+                    this.maxSpeed = 8;    // 最高速度（数値を下げて制御しやすく）
+                    break; 
+                default: this.width = 3; this.height = 15; 
+            } 
+        } 
+        // ★追尾弾の挙動を修正
+        update() { 
+            if (this.shape === 'missile' && this.life > 0) {
+                this.life--;
+                if (!this.target || (this.target.hp !== undefined && this.target.hp <= 0) || (this.type === 'enemy' && !player)) {
+                    if (this.type === 'enemy' && player) { this.target = player; } 
+                    else if (this.type === 'player') { this.target = findClosestEnemy(this.x, this.y); }
+                    else { this.target = null; }
+                }
+                if (this.target) {
+                    const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+                    this.vx += Math.cos(angle) * this.turnForce;
+                    this.vy += Math.sin(angle) * this.turnForce;
+                }
+                const speed = Math.hypot(this.vx, this.vy);
+                if (speed > this.maxSpeed) {
+                    const ratio = this.maxSpeed / speed;
+                    this.vx *= ratio; this.vy *= ratio;
+                }
+            }
+            this.x += this.vx; this.y += this.vy; 
+        } 
+        // ★追尾弾のデザインを修正
+        draw() { 
+            ctx.save(); 
+            ctx.fillStyle = this.color; 
+            ctx.shadowColor = this.color; 
+            ctx.shadowBlur = this.shape === 'missile' ? 10 : 15;
+            if (this.shape === 'missile') {
+                const angle = Math.atan2(this.vy, this.vx) + Math.PI / 2;
+                ctx.translate(this.x, this.y);
+                ctx.rotate(angle);
+                // ミサイル本体
+                ctx.beginPath();
+                ctx.moveTo(0, -this.height * 0.6);
+                ctx.lineTo(-this.width / 2, this.height * 0.4);
+                ctx.lineTo(this.width / 2, this.height * 0.4);
+                ctx.closePath();
+                ctx.fill();
+                // 噴射炎
+                const flameSize = this.height * (0.5 + Math.random() * 0.3);
+                ctx.fillStyle = '#ffcc00';
+                ctx.shadowColor = '#ff9900';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.moveTo(0, this.height * 0.4);
+                ctx.lineTo(-this.width * 0.4, this.height * 0.4 + flameSize);
+                ctx.lineTo( this.width * 0.4, this.height * 0.4 + flameSize);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.shape === 'ball') { 
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); 
+            } else { 
+                ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); 
+            } 
+            ctx.restore(); 
+        } 
+    }
+    // ★ボスのHPを登場回数に応じて増加させる
+    class Boss { 
+        constructor(count) { // count: これまでに倒したボスの数
+            const baseHp = 600;
+            const hpIncrease = 300; // 1体ごとに追加されるHP
+            this.maxHp = baseHp + count * hpIncrease;
+            this.hp = this.maxHp;
+            this.x = logicalWidth / 2; this.y = -100; this.width = 96; this.height = 96; 
+            this.score = 10000 + count * 2500; // スコアも増加させる
+            this.targetY = 120; this.state = 'enter'; this.patternTimer = 0; this.currentPattern = 0; 
+        } 
+        update() { if (this.state === 'enter') { this.y += 2; if (this.y >= this.targetY) { this.y = this.targetY; this.state = 'fight'; } return; } this.patternTimer--; if (this.patternTimer <= 0) { this.currentPattern = (this.currentPattern + 1) % 3; switch (this.currentPattern) { case 0: this.patternTimer = 60; for (let i = 0; i < 11; i++) bullets.push(new Bullet(this.x, this.y + this.height/2, {vy:7, vx:(i-5), color:'#f57c00', type:'enemy'})); break; case 1: this.patternTimer = 80; for(let i=0; i<4; i++) setTimeout(()=> {if(this.hp>0 && gameState === 'playing') bullets.push(new Bullet(this.x, this.y + this.height/2, {vy:14, color:'#f57c00', type:'enemy', damage: 2}))}, i*100); break; case 2: this.patternTimer = 100; bullets.push(new Bullet(this.x - 40, this.y + this.height/2, {shape:'missile', type:'enemy', color:'#c2185b', target:player})); bullets.push(new Bullet(this.x + 40, this.y + this.height/2, {shape:'missile', type:'enemy', color:'#c2185b', target:player})); break; } } } draw() { if (images.boss) { ctx.drawImage(images.boss, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#7B1FA2'; ctx.strokeStyle = '#9C27B0'; ctx.lineWidth = 4; ctx.fillRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height); ctx.strokeRect(this.x - this.width/2, this.y - this.height/2, this.width, this.height); ctx.restore(); } } }
     class Enemy { constructor() { this.x = Math.random() * (logicalWidth - 40) + 20; this.y = -40; this.width = 48; this.height = 48; this.speed = 3; this.hp = 3; this.score = 100; } update() { this.y += this.speed; } draw() { if (images.enemy1) { ctx.drawImage(images.enemy1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#C0C'; ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.width / 2, this.y - this.height); ctx.lineTo(this.x - this.width / 2, this.y - this.height); ctx.closePath(); ctx.fill(); ctx.restore(); } } }
     class ShooterEnemy extends Enemy { constructor() { super(); this.speed = 2.5; this.hp = 4; this.score = 150; this.shootCooldown = Math.random() * 50 + 50; } update() { super.update(); this.shootCooldown--; if (this.shootCooldown <= 0 && this.y > 0 && this.y < logicalHeight) { [-6,0,6].forEach(dx=> bullets.push(new Bullet(this.x,this.y,{vx:dx,vy:8,color:'#ff5722',type:'enemy'})) ); this.shootCooldown = 90; } } draw() { if (images.enemy2) { ctx.drawImage(images.enemy2, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#D32F2F'; ctx.beginPath(); ctx.moveTo(this.x + this.width/2, this.y); ctx.lineTo(this.x, this.y-this.height); ctx.lineTo(this.x-this.width/2, this.y); ctx.closePath(); ctx.fill(); ctx.restore(); } } }
     class ChaserEnemy extends Enemy { constructor() { super(); this.speed = 2; this.hp = 2; this.score = 200; this.chaseSpeed = 1.5; this.dashed = false; } update() { this.y += this.speed; if(player) this.x += Math.sign(player.x - this.x) * this.chaseSpeed; if (this.y > 80 && !this.dashed) { for(let i=0;i<5;i++) bullets.push(new Bullet(this.x,this.y,{vx:(Math.random()-0.5)*6,vy:8,color:'#e91e63',type:'enemy'})); this.speed=12; this.dashed=true; } } draw() { if (images.enemy3) { ctx.drawImage(images.enemy3, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height); } else { ctx.save(); ctx.fillStyle = '#FFC107'; ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.width/4, this.y - this.height); ctx.lineTo(this.x - this.width/4, this.y - this.height); ctx.closePath(); ctx.fill(); ctx.restore(); } } }
@@ -271,7 +368,6 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             else if (p.type === 'powerup') { player.powerUp(); }
             collectedPowerUps.push(p); } }); if(collectedPowerUps.length > 0) powerUps = powerUps.filter(p => !collectedPowerUps.includes(p)); }
     
-    // ★修正: アイテム発生確率を元の値に戻しました
     function onEnemyDestroy(e) {
         AudioEngine.playExplosion();
         if (e.score) score += e.score;
@@ -282,18 +378,37 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             AudioEngine.playBGM('main');
         } else {
             const r = Math.random();
-            if (r < 0.05) { // ハートアイテム: 5%
-                powerUps.push(new HeartItem(e.x, e.y));
-            } else if (r < 0.15) { // パワーアップアイテム: 10%
-                powerUps.push(new PowerUp(e.x, e.y));
-            }
+            if (r < 0.05) { powerUps.push(new HeartItem(e.x, e.y)); }
+            else if (r < 0.15) { powerUps.push(new PowerUp(e.x, e.y)); }
         }
     }
-
-    function spawnBoss() { enemies = []; boss = new Boss(); AudioEngine.playBGM('boss'); }
+    // ★ボス生成時に `bossCount` を渡すように修正
+    function spawnBoss() { enemies = []; boss = new Boss(bossCount); AudioEngine.playBGM('boss'); }
     function createExplosion(x, y, colors, count = 20) { for (let i = 0; i < count; i++) { const color = colors[Math.floor(Math.random() * colors.length)]; particles.push(new Particle(x, y, color, Math.random() * 3 + 1, Math.random() * 8 + 2)); } }
     function gameLoop() { animationFrameId = requestAnimationFrame(gameLoop); try { if (gameState === 'playing') { update(); draw(); } if (gameState === 'gameOver') { showGameOver(); } } catch(e) { cancelAnimationFrame(animationFrameId); window.onerror(e.message, 'gameLoop', 0, 0, e); } }
-    function showGameOver() { if(gameState === 'gameOver') { gameState = 'ended'; if(animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null; AudioEngine.stopBGM(); if (isTouchDevice()) elements.touchControls.style.display = 'none'; const playerX = player ? player.x : logicalWidth/2; const playerY = player ? player.y : logicalHeight/2; createExplosion(playerX, playerY, ['#fff', '#0ff', '#f0f'], 100); player = null; elements.finalScoreDisplay.textContent = score; elements.gameOverScreen.style.display = 'flex'; elements.hud.style.display = 'none'; elements.bossHpContainer.style.display = 'none'; } }
+    
+    // ★ゲームオーバー時にハイスコアを保存・表示するよう修正
+    function showGameOver() { 
+        if(gameState === 'gameOver') { 
+            gameState = 'ended'; 
+            if(animationFrameId) cancelAnimationFrame(animationFrameId); 
+            animationFrameId = null; 
+            AudioEngine.stopBGM(); 
+            if (isTouchDevice()) elements.touchControls.style.display = 'none'; 
+            const playerX = player ? player.x : logicalWidth/2; 
+            const playerY = player ? player.y : logicalHeight/2; 
+            createExplosion(playerX, playerY, ['#fff', '#0ff', '#f0f'], 100); 
+            player = null; 
+            
+            saveHighScore(score); // ハイスコアを保存
+            elements.finalScoreDisplay.textContent = score; 
+            elements.highScoreDisplay.textContent = highScore; // ハイスコアを表示
+
+            elements.gameOverScreen.style.display = 'flex'; 
+            elements.hud.style.display = 'none'; 
+            elements.bossHpContainer.style.display = 'none'; 
+        } 
+    }
     function isTouchDevice() { return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0); }
     
     function movePlayerToTouch(touch) {
@@ -326,12 +441,15 @@ window.onerror = function(message, source, lineno, colno, error) { document.body
             startButton: document.getElementById('start-button'),
             retryButton: document.getElementById('retry-button'),
             finalScoreDisplay: document.getElementById('final-score'),
+            highScoreDisplay: document.getElementById('high-score'), // ★ハイスコア表示要素を取得
             mainBgm: document.getElementById('bgm-main'),
             bossBgm: document.getElementById('bgm-boss'),
             muteButton: document.getElementById('mute-button'),
         };
         ctx = elements.canvas.getContext('2d');
         gameState = 'title';
+
+        loadHighScore(); // ★ページ読み込み時にハイスコアを読み込む
 
         function resizeCanvas() {
             const dpr = window.devicePixelRatio || 1;
